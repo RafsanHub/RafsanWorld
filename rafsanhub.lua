@@ -869,6 +869,10 @@ do
     local deviceType = UserInputService.TouchEnabled and "MOBILE" or "PC"
     createInfoLine("DEVICE: ", deviceType, 8)
 
+    -- 🔴 এই লাইনটি নতুন যোগ করুন (এখানে আপনার Key-টি দেখাবে)
+    createInfoLine("ACTIVE KEY: ", MyLoginKey, 9)
+
+
     local frames = 0
     RunService.RenderStepped:Connect(function() frames = frames + 1 end)
     task.spawn(function()
