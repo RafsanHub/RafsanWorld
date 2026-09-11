@@ -1,4 +1,3 @@
-
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
@@ -8,29 +7,76 @@ local TextService = game:GetService("TextService")
 local player = game.Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- 🔴 Key System থেকে পাঠানো Key রিসিভ করা হচ্ছে এবং সাথে সাথে মুছে ফেলা হচ্ছে (নিরাপত্তার জন্য)
+-- ========================================================================
+-- 🌐 [API & BACKEND INTEGRATION ENGINE]
+-- ========================================================================
+-- Receiving Key & Subscription from Key System and clearing globals for safety
 local MyLoginKey = _G.RafsanHubActiveKey or "No_Key_Found"
+local CurrentPlan = string.upper(_G.RafsanHubSubscription or "FREE")
+
 _G.RafsanHubActiveKey = nil 
+_G.RafsanHubSubscription = nil 
 
+local API_CONFIG = {
+    RenderUpdateURL = "https://pybend.onrender.com/update-status",
+    ActiveKey = MyLoginKey,
+    SyncInterval = 60
+}
 
+local DeviceType = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled) and "Mobile" or "PC"
+local SessionStartTime = os.time()
 
+local function FormatRuntime(seconds)
+    local m = math.floor(seconds / 60)
+    local h = math.floor(m / 60)
+    return h > 0 and string.format("%dh %dm", h, m % 60) or string.format("%dm", m % 60)
+end
 
--- ⚙️ [CONFIG] মেইন সেটিংস
+-- Sync Data to Render Backend
+local function SyncData(isActive)
+    if API_CONFIG.ActiveKey == "No_Key_Found" then return end
+    local payload = {
+        key = API_CONFIG.ActiveKey,
+        username = player.Name,
+        device = DeviceType,
+        runtime = FormatRuntime(os.time() - SessionStartTime),
+        active = isActive
+    }
+    task.spawn(function()
+        pcall(function()
+            local req = request or http_request or syn_request or (http and http.request)
+            if req then 
+                req({
+                    Url = API_CONFIG.RenderUpdateURL, 
+                    Method = "POST", 
+                    Headers = {["Content-Type"] = "application/json"}, 
+                    Body = HttpService:JSONEncode(payload)
+                }) 
+            end
+        end)
+    end)
+end
+
+SyncData(true)
+task.spawn(function() while task.wait(API_CONFIG.SyncInterval) do SyncData(true) end end)
+game:BindToClose(function() SyncData(false) end)
+game.Players.PlayerRemoving:Connect(function(plr) if plr == player then SyncData(false) end end)
+
+-- ========================================================================
+-- ⚙️ [CONFIG] MAIN SETTINGS
+-- ========================================================================
 local Config = {
     TackleCooldown = 0.5, DribbleCooldown = 0.8, AutoTackleEnabled = false, AutoDribbleEnabled = false, ReachEnabled = false, ReachVisualizer = false, ReachX = 15, ReachY = 15, ReachZ = 15, 
     AutoCurveEnabled = false, CurveRate = 20, EspLineEnabled = false, EspBoxEnabled = false, TeammateColor = Color3.fromRGB(30, 255, 30), EnemyColor = Color3.fromRGB(255, 30, 30),
     BallEspEnabled = false, BallItemEsp = false, TackleBoostEnabled = false, TackleBoostPower = 3.5, InfinityStaminaEnabled = false, SafeSpeedEnabled = false, SpeedPower = 15,
-    
-    -- 🎨 MENU & UI CONFIG
     MenuHeight = 340, MenuWidth = 580, MenuTransparency = 0, MenuRainbow = false, LogoSpeed = 0
 }
 
--- 🌟 AI এর জন্য আপডেটার টেবিলস
 getgenv().ToggleUpdaters = {}
 getgenv().SliderUpdaters = {}
 getgenv().ColorUpdaters = {}
 
--- 🎨 [THEME] গোল্ড কালার থিম
+-- 🎨 [THEME] GOLD THEME COLORS
 local Color_PrimaryGold = Color3.fromRGB(212, 175, 55)
 local Color_BrightGold = Color3.fromRGB(255, 215, 0)
 local Color_DarkGold = Color3.fromRGB(150, 120, 40)
@@ -38,12 +84,12 @@ local Color_BgDark = Color3.fromRGB(12, 12, 15)
 local Color_BgLighter = Color3.fromRGB(22, 22, 26)
 local Color_Hover = Color3.fromRGB(32, 32, 38)
 
--- ⚡ [REMOTES] গেমের সার্ভার ইভেন্ট
+-- ⚡ [REMOTES]
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
 local ActionRemote = Remotes and Remotes:FindFirstChild("Action")
 local ShootRemote = Remotes and Remotes:FindFirstChild("ShootTheBaII")
 
--- 🖥️ [UI SETUP] মেইন স্ক্রিন গুই
+-- 🖥️ [UI SETUP] MAIN SCREEN GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = HttpService:GenerateGUID(false)
 ScreenGui.ResetOnSpawn = false
@@ -77,7 +123,6 @@ end
 
 
 -- 🌟 UI DESIGN ELEMENTS
-
 local LogoButton = Instance.new("ImageButton")
 LogoButton.Size, LogoButton.Position = UDim2.new(0, 45, 0, 45), UDim2.new(0, 20, 0, 60)
 LogoButton.BackgroundColor3, LogoButton.BackgroundTransparency, LogoButton.Image, LogoButton.BorderSizePixel = Color_BgDark, 0.2, "rbxassetid://118480450941502", 0 
@@ -112,8 +157,6 @@ local UIScale = Instance.new("UIScale", MainFrame) UIScale.Scale = 0
 local UIStroke = Instance.new("UIStroke", MainFrame) 
 UIStroke.Color, UIStroke.Thickness, UIStroke.Transparency = Color_BrightGold, 2, 0.1 
 
-
-
 task.spawn(function() while true do TweenService:Create(UIStroke, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.6}):Play() task.wait(1.5) TweenService:Create(UIStroke, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.1}):Play() task.wait(1.5) end end)
 
 local Title = Instance.new("TextLabel", MainFrame) Title.Size, Title.Position, Title.BackgroundTransparency, Title.Text, Title.TextColor3, Title.Font, Title.TextSize, Title.TextXAlignment = UDim2.new(1, -140, 0, 26), UDim2.new(0, 15, 0, 4), 1, "RAFSAN HUB VIP", Color3.fromRGB(255, 255, 255), Enum.Font.PermanentMarker, 24, Enum.TextXAlignment.Left 
@@ -131,10 +174,7 @@ local MinGrad = Instance.new("UIGradient", MinimizeButton) MinGrad.Color = Color
 local CloseButton = Instance.new("TextButton", MainFrame) CloseButton.Size, CloseButton.Position, CloseButton.BackgroundTransparency, CloseButton.Text, CloseButton.TextColor3, CloseButton.Font, CloseButton.TextSize, CloseButton.ZIndex = UDim2.new(0, 35, 0, 48), UDim2.new(1, -35, 0, 0), 1, "X", Color3.fromRGB(255, 255, 255), Enum.Font.GothamBold, 16, 2 
 local CloseGrad = Instance.new("UIGradient", CloseButton) CloseGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color_BrightGold), ColorSequenceKeypoint.new(1, Color_PrimaryGold)}) 
 
-
---The vip Maker is here-
-getgenv().IsVIP = true
-
+-- 🔴 DYNAMIC VIP STATUS MAKER
 local StatusBadge = Instance.new("Frame", MainFrame)
 StatusBadge.Size = UDim2.new(0, 45, 0, 20)
 StatusBadge.Position = UDim2.new(1, -135, 0, 14) 
@@ -146,7 +186,7 @@ local StatusText = Instance.new("TextLabel", StatusBadge)
 StatusText.Size = UDim2.new(1, 0, 1, 0)
 StatusText.BackgroundTransparency = 1
 StatusText.Font = Enum.Font.GothamBold
-StatusText.TextSize = 13 -- টেক্সট সাইজ বড় করা হয়েছে
+StatusText.TextSize = 13
 StatusText.TextColor3 = Color3.fromRGB(255, 255, 255)
 
 local ShinyGlow = Instance.new("Frame", StatusBadge)
@@ -154,7 +194,7 @@ ShinyGlow.Size = UDim2.new(0.5, 0, 1, 0)
 ShinyGlow.Position = UDim2.new(-1, 0, 0, 0)
 ShinyGlow.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 ShinyGlow.BorderSizePixel = 0
-Instance.new("UICorner", ShinyGlow).CornerRadius = UDim.new(0, 6) -- শাইনি ইফেক্টকেও রাউন্ড করা হলো
+Instance.new("UICorner", ShinyGlow).CornerRadius = UDim.new(0, 6)
 
 local ShinyGrad = Instance.new("UIGradient", ShinyGlow)
 ShinyGrad.Rotation = 45
@@ -164,20 +204,23 @@ ShinyGrad.Transparency = NumberSequence.new({
     NumberSequenceKeypoint.new(1, 1)
 })
 
-getgenv().UpdateVIPStatus = function(isPremium)
-    getgenv().IsVIP = isPremium
-    if isPremium then
-        StatusBadge.BackgroundColor3 = Color_PrimaryGold
-        StatusText.Text = "PRO"
-        ShinyGlow.Visible = true
-    else
+getgenv().UpdateVIPStatus = function(planName)
+    local upperPlan = string.upper(tostring(planName))
+    if upperPlan == "FREE" then
+        getgenv().IsVIP = false
         StatusBadge.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
         StatusText.Text = "FREE"
         ShinyGlow.Visible = false
+    else
+        getgenv().IsVIP = true
+        StatusBadge.BackgroundColor3 = Color_PrimaryGold
+        StatusText.Text = "VIP"
+        ShinyGlow.Visible = true
     end
 end
 
-getgenv().UpdateVIPStatus(getgenv().IsVIP)
+-- Initialize the Status Badge based on Firebase Plan
+getgenv().UpdateVIPStatus(CurrentPlan)
 
 task.spawn(function()
     while true do
@@ -192,10 +235,6 @@ task.spawn(function()
     end
 end)
 
-
-
-
-
 local VerticalDivider = Instance.new("Frame", MainFrame) VerticalDivider.Size, VerticalDivider.Position, VerticalDivider.BackgroundColor3, VerticalDivider.BackgroundTransparency, VerticalDivider.BorderSizePixel = UDim2.new(0, 2, 1, -66), UDim2.new(0, 115, 0, 56), Color_PrimaryGold, 0.7, 0 
 
 local SearchBackground = Instance.new("Frame", MainFrame) 
@@ -204,22 +243,16 @@ Instance.new("UICorner", SearchBackground).CornerRadius = UDim.new(0, 4)
 local SearchStroke = Instance.new("UIStroke", SearchBackground) 
 SearchStroke.Color, SearchStroke.Thickness, SearchStroke.Transparency = Color_PrimaryGold, 1, 0.5 
 
--- 🔍 সার্চ আইকন (সাইজ ম্যাক্সিমাম এবং মার্জিন ফিক্সড)
 local SearchIcon = Instance.new("ImageLabel", SearchBackground)
-SearchIcon.Size = UDim2.new(0, 28, 0, 28) -- আইকন আরও বড় করা হলো (২৮x২৮)
-SearchIcon.Position = UDim2.new(0, 6, 0.5, -14) -- লেফট প্যাডিং কমিয়ে ৬ পিক্সেল করা হলো
+SearchIcon.Size = UDim2.new(0, 28, 0, 28) 
+SearchIcon.Position = UDim2.new(0, 6, 0.5, -14) 
 SearchIcon.BackgroundTransparency = 1
 SearchIcon.Image = "rbxassetid://93237153057255"
 SearchIcon.ImageColor3 = Color3.fromRGB(150, 140, 110) 
 SearchIcon.ScaleType = Enum.ScaleType.Fit 
 
 local SearchView = Instance.new("TextBox", SearchBackground) 
--- 📏 টেক্সট বক্সকে টেনে একদম আইকনের গায়ের সাথে (Position X = 34) লাগিয়ে দেওয়া হলো
 SearchView.Size, SearchView.Position, SearchView.BackgroundTransparency, SearchView.ClearTextOnFocus, SearchView.TextTruncate, SearchView.TextXAlignment, SearchView.Text, SearchView.PlaceholderText, SearchView.PlaceholderColor3, SearchView.TextColor3, SearchView.Font, SearchView.TextSize = UDim2.new(1, -40, 1, 0), UDim2.new(0, 34, 0, 0), 1, false, Enum.TextTruncate.AtEnd, Enum.TextXAlignment.Left, "", "Search features...", Color3.fromRGB(150, 140, 110), Color3.fromRGB(255, 255, 255), Enum.Font.GothamMedium, 13 
-
-
-
-
 
 -- 🌟 TABS SCROLL VIEW
 local TabScroll = Instance.new("ScrollingFrame", MainFrame) 
@@ -242,16 +275,14 @@ TackleCircle.Size, TackleCircle.Position, TackleCircle.BackgroundColor3, TackleC
 makeDraggable(TackleCircle, TackleCircle) Instance.new("UICorner", TackleCircle).CornerRadius = UDim.new(1, 0) 
 local TCStroke = Instance.new("UIStroke", TackleCircle) TCStroke.ApplyStrokeMode, TCStroke.Thickness, TCStroke.Color = Enum.ApplyStrokeMode.Border, 2, Color_PrimaryGold
 
-
 -- 🗂️ [FUNCTION] TAB & FEATURE LOGIC
 local allTabs, allPages, AllSearchItems = {}, {}, {}
 
--- 🔍 কনফিগারেশন: কোন ট্যাবে সার্চবার থাকবে (true = থাকবে, false = থাকবে না)
 local tabsWithSearch = {
-    [1] = true,  -- Tab 1 (Player): Searchbar ON
-    [2] = false, -- Tab 2 (AI Chat): Searchbar OFF
-    [3] = false, -- Tab 3 (Premium): Searchbar OFF
-    [4] = false, -- Tab 4 (About): Searchbar OFF
+    [1] = true,  -- Tab 1 (Player)
+    [2] = false, -- Tab 2 (AI Chat - Reserved)
+    [3] = false, -- Tab 3 (Premium)
+    [4] = false, -- Tab 4 (About)
 }
 
 local function switchTab(tabIndex)
@@ -269,8 +300,6 @@ local function switchTab(tabIndex)
         activeTab.Button.BackgroundColor3, activeTab.Label.TextColor3, activeTab.Icon.ImageColor3 = Color_PrimaryGold, Color_BrightGold, Color_BrightGold 
         allPages[tabIndex].Visible = true 
         
-        -- 🔍 ডায়নামিক সার্চবার হাইড/শো লজিক
-        -- যদি tabsWithSearch লিস্টে ওই ট্যাবের মান true হয়
         if tabsWithSearch[tabIndex] == true then 
             if SearchBackground then SearchBackground.Visible = true end
             if FeatureArea then 
@@ -278,7 +307,6 @@ local function switchTab(tabIndex)
                 FeatureArea.Size = UDim2.new(1, -135, 1, -100)
             end
         else 
-            -- যদি false হয় বা লিস্টে না থাকে
             if SearchBackground then SearchBackground.Visible = false end
             if FeatureArea then 
                 FeatureArea.Position = UDim2.new(0, 125, 0, 56)
@@ -287,7 +315,6 @@ local function switchTab(tabIndex)
         end
     end
 end
-
 
 local function createTabAndPage(tabName, iconId, isSingleColumn)
     local tabIndex = #allTabs + 1
@@ -370,15 +397,44 @@ local function createCFeature(parentColumn, titleText, tabIndex)
     return {Content = ContentFrame, MainCont = MainCont, ForceOpen = forceOpen, TabIndex = tabIndex}
 end
 
-local function addToggle(cFeature, text, callback)
+-- 🌟 [REUSABLE UI] Premium VIP Badge Maker
+local function CreatePremiumBadge(parent, isUnlocked, xOffset, yOffset)
+    local TierBadge = Instance.new("TextLabel", parent)
+    TierBadge.Size = UDim2.new(0, 32, 0, 16) 
+    TierBadge.AnchorPoint = Vector2.new(1, yOffset or 0.5)
+    TierBadge.Position = UDim2.new(1, xOffset, yOffset or 0.5, yOffset and 1 or 0)
+    TierBadge.BackgroundColor3 = isUnlocked and Color_BrightGold or Color3.fromRGB(100, 85, 30) 
+    TierBadge.Text = "VIP"
+    TierBadge.TextColor3 = isUnlocked and Color_BgDark or Color3.fromRGB(180, 180, 180)
+    TierBadge.Font = Enum.Font.GothamBold
+    TierBadge.TextSize = 10
+    Instance.new("UICorner", TierBadge).CornerRadius = UDim.new(0, 4)
+    return TierBadge
+end
+
+-- 🔴 SMART TOGGLE (VIP Lock Supported)
+local function addToggle(cFeature, text, isPremium, callback)
+    if type(isPremium) == "function" then
+        callback = isPremium
+        isPremium = false
+    end
+    
+    local isUnlocked = not isPremium or getgenv().IsVIP
     local state = false 
-    local ToggleCont = Instance.new("TextButton", cFeature.Content) ToggleCont.Size, ToggleCont.BackgroundTransparency, ToggleCont.BackgroundColor3, ToggleCont.Text = UDim2.new(1, 0, 0, 30), 1, Color_Hover, "" 
+    
+    local ToggleCont = Instance.new("TextButton", cFeature.Content) 
+    ToggleCont.Size, ToggleCont.BackgroundTransparency, ToggleCont.BackgroundColor3, ToggleCont.Text = UDim2.new(1, 0, 0, 30), 1, Color_Hover, "" 
     Instance.new("UICorner", ToggleCont).CornerRadius = UDim.new(0, 6) 
     
     ToggleCont.MouseEnter:Connect(function() TweenService:Create(ToggleCont, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play() end)
     ToggleCont.MouseLeave:Connect(function() TweenService:Create(ToggleCont, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play() end)
     
-    local Label = Instance.new("TextLabel", ToggleCont) Label.Size, Label.Position, Label.BackgroundTransparency, Label.Text, Label.TextColor3, Label.Font, Label.TextSize, Label.TextXAlignment = UDim2.new(1, -50, 1, 0), UDim2.new(0, 10, 0, 0), 1, text, Color3.fromRGB(220, 220, 220), Enum.Font.GothamMedium, 13, Enum.TextXAlignment.Left 
+    local Label = Instance.new("TextLabel", ToggleCont) 
+    Label.Size, Label.Position, Label.BackgroundTransparency, Label.Text, Label.TextColor3, Label.Font, Label.TextSize, Label.TextXAlignment = UDim2.new(1, -110, 1, 0), UDim2.new(0, 10, 0, 0), 1, text, isUnlocked and Color3.fromRGB(220, 220, 220) or Color3.fromRGB(120, 120, 120), Enum.Font.GothamMedium, 13, Enum.TextXAlignment.Left 
+
+    -- Show VIP Badge if premium feature
+    if isPremium then CreatePremiumBadge(ToggleCont, isUnlocked, -50, 0.5) end
+
     local Pill = Instance.new("Frame", ToggleCont) Pill.Size, Pill.AnchorPoint, Pill.Position, Pill.BackgroundColor3 = UDim2.new(0, 34, 0, 18), Vector2.new(1, 0.5), UDim2.new(1, -5, 0.5, 0), Color3.fromRGB(40, 40, 45) 
     Instance.new("UICorner", Pill).CornerRadius = UDim.new(1, 0) 
     local Circle = Instance.new("Frame", Pill) Circle.Size, Circle.AnchorPoint, Circle.Position, Circle.BackgroundColor3 = UDim2.new(0, 14, 0, 14), Vector2.new(0, 0.5), UDim2.new(0, 2, 0.5, 0), Color3.fromRGB(200, 200, 200) 
@@ -392,28 +448,44 @@ local function addToggle(cFeature, text, callback)
         if callback then callback(state) end 
     end
     
-    ToggleCont.MouseButton1Click:Connect(function() SetState(not state) end) 
+    ToggleCont.MouseButton1Click:Connect(function() 
+        if not isUnlocked then
+            game:GetService("StarterGui"):SetCore("SendNotification", {Title = "🔒 VIP Required", Text = text .. " is a VIP only feature.", Duration = 3})
+            return
+        end
+        SetState(not state) 
+    end) 
     
     local plainText = string.lower(string.gsub(text, " ", ""))
     table.insert(AllSearchItems, { Name = plainText, UI = ToggleCont, cFeature = cFeature })
     return SetState 
 end
 
-local function addSlider(cFeature, text, minVal, maxVal, callback)
+-- 🔴 SMART SLIDER (VIP Lock Supported)
+local function addSlider(cFeature, text, minVal, maxVal, isPremium, callback)
+    if type(isPremium) == "function" then
+        callback = isPremium
+        isPremium = false
+    end
+
+    local isUnlocked = not isPremium or getgenv().IsVIP
+    
     local SliderFrame = Instance.new("Frame", cFeature.Content) SliderFrame.Size, SliderFrame.BackgroundTransparency = UDim2.new(1, 0, 0, 36), 1 
-    local TitleLabel = Instance.new("TextLabel", SliderFrame) TitleLabel.Size, TitleLabel.Position, TitleLabel.BackgroundTransparency, TitleLabel.Text, TitleLabel.TextColor3, TitleLabel.Font, TitleLabel.TextSize, TitleLabel.TextXAlignment = UDim2.new(1, -40, 0, 18), UDim2.new(0, 10, 0, 0), 1, text, Color3.fromRGB(220, 220, 220), Enum.Font.GothamMedium, 13, Enum.TextXAlignment.Left 
-    local ValueLabel = Instance.new("TextLabel", SliderFrame) ValueLabel.Size, ValueLabel.Position, ValueLabel.BackgroundTransparency, ValueLabel.Text, ValueLabel.TextColor3, ValueLabel.Font, ValueLabel.TextSize, ValueLabel.TextXAlignment = UDim2.new(0, 40, 0, 18), UDim2.new(1, -45, 0, 0), 1, tostring(minVal), Color_PrimaryGold, Enum.Font.GothamBold, 13, Enum.TextXAlignment.Right 
+    local TitleLabel = Instance.new("TextLabel", SliderFrame) TitleLabel.Size, TitleLabel.Position, TitleLabel.BackgroundTransparency, TitleLabel.Text, TitleLabel.TextColor3, TitleLabel.Font, TitleLabel.TextSize, TitleLabel.TextXAlignment = UDim2.new(1, -110, 0, 18), UDim2.new(0, 10, 0, 0), 1, text, isUnlocked and Color3.fromRGB(220, 220, 220) or Color3.fromRGB(120, 120, 120), Enum.Font.GothamMedium, 13, Enum.TextXAlignment.Left 
+    
+    -- Show VIP Badge if premium feature
+    if isPremium then CreatePremiumBadge(SliderFrame, isUnlocked, -50, 0) end
+
+    local ValueLabel = Instance.new("TextLabel", SliderFrame) ValueLabel.Size, ValueLabel.Position, ValueLabel.BackgroundTransparency, ValueLabel.Text, ValueLabel.TextColor3, ValueLabel.Font, ValueLabel.TextSize, ValueLabel.TextXAlignment = UDim2.new(0, 40, 0, 18), UDim2.new(1, -45, 0, 0), 1, tostring(minVal), isUnlocked and Color_PrimaryGold or Color3.fromRGB(100, 90, 40), Enum.Font.GothamBold, 13, Enum.TextXAlignment.Right 
     local TrackBg = Instance.new("TextButton", SliderFrame) TrackBg.Text, TrackBg.Size, TrackBg.Position, TrackBg.BackgroundColor3, TrackBg.AutoButtonColor = "", UDim2.new(1, -10, 0, 6), UDim2.new(0, 5, 0, 24), Color3.fromRGB(40, 40, 45), false 
     Instance.new("UICorner", TrackBg).CornerRadius = UDim.new(1, 0) 
-    local TrackFill = Instance.new("Frame", TrackBg) TrackFill.Size, TrackFill.BackgroundColor3 = UDim2.new(0, 0, 1, 0), Color_PrimaryGold 
+    local TrackFill = Instance.new("Frame", TrackBg) TrackFill.Size, TrackFill.BackgroundColor3 = UDim2.new(0, 0, 1, 0), isUnlocked and Color_PrimaryGold or Color3.fromRGB(100, 90, 40)
     Instance.new("UICorner", TrackFill).CornerRadius = UDim.new(1, 0) 
     local LimitArea = Instance.new("Frame", TrackBg) LimitArea.Size, LimitArea.AnchorPoint, LimitArea.Position, LimitArea.BackgroundTransparency = UDim2.new(1, -12, 1, 0), Vector2.new(0.5, 0.5), UDim2.new(0.5, 0, 0.5, 0), 1 
     
-    local Ball = Instance.new("Frame", LimitArea) Ball.Size, Ball.AnchorPoint, Ball.Position, Ball.BackgroundColor3 = UDim2.new(0, 14, 0, 14), Vector2.new(0.5, 0.5), UDim2.new(0, 0, 0.5, 0), Color_PrimaryGold 
+    local Ball = Instance.new("Frame", LimitArea) Ball.Size, Ball.AnchorPoint, Ball.Position, Ball.BackgroundColor3 = UDim2.new(0, 14, 0, 14), Vector2.new(0.5, 0.5), UDim2.new(0, 0, 0.5, 0), isUnlocked and Color_PrimaryGold or Color3.fromRGB(100, 90, 40)
     Instance.new("UICorner", Ball).CornerRadius = UDim.new(1, 0) 
-    local BallStroke = Instance.new("UIStroke", Ball) BallStroke.Color, BallStroke.Thickness = Color_PrimaryGold, 1.5 
 
-    
     local function setSliderValue(val)
         val = tonumber(val)
         if not val then return end
@@ -427,12 +499,20 @@ local function addSlider(cFeature, text, minVal, maxVal, callback)
 
     local sliding = false
     local function updateSlider(input) 
+        if not isUnlocked then return end
         local percent = math.clamp((input.Position.X - LimitArea.AbsolutePosition.X) / LimitArea.AbsoluteSize.X, 0, 1) 
-        local val = math.floor(minVal + ((maxVal - minVal) * percent)) 
-        setSliderValue(val)
+        setSliderValue(math.floor(minVal + ((maxVal - minVal) * percent)))
     end
     
-    TrackBg.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliding = true updateSlider(input) end end) 
+    TrackBg.InputBegan:Connect(function(input) 
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+            if not isUnlocked then
+                game:GetService("StarterGui"):SetCore("SendNotification", {Title = "🔒 VIP Required", Text = text .. " is a VIP only feature.", Duration = 3})
+                return
+            end
+            sliding = true updateSlider(input) 
+        end 
+    end) 
     UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliding = false end end) 
     UserInputService.InputChanged:Connect(function(input) if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then updateSlider(input) end end) 
     
@@ -495,7 +575,6 @@ local function addColorPicker(cFeature, text, defaultColor, callback)
     end
     ColorBox.MouseButton1Click:Connect(openPicker) 
     
-    -- 🎨 SMART COLOR CONVERTER
     local basicColors = { red = "#FF0000", green = "#00FF00", blue = "#0000FF", yellow = "#FFFF00", black = "#000000", white = "#FFFFFF", purple = "#800080", pink = "#FFC0CB", orange = "#FFA500", cyan = "#00FFFF", gold = "#FFD700", grey = "#808080", gray = "#808080" }
     
     local function aiSetColor(cmdValue)
@@ -521,7 +600,6 @@ end
 -- =========================================================================
 -- GAMEPLAY LOGIC & HOOKS
 -- =========================================================================
---dont delete it-
 local menuClickTime = 0
 LogoButton.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then menuClickTime = tick() end
@@ -553,7 +631,6 @@ CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
---it can be deleted hooks--
 local function GetPlayerTeam(playerName)
     local stats = workspace:FindFirstChild("PlayerStats")
     if stats then
@@ -575,23 +652,15 @@ local function IsTeammate(targetPlayer)
     return false
 end
 
---there can be added hooks-
-
-
-
-
-
-
-
---  THE FINAL & FLAWLESS RAINBOW ENGINE (MATH-BASED, NO GLITCHES)
+-- THE FINAL & FLAWLESS RAINBOW ENGINE (MATH-BASED, NO GLITCHES)
 local RainbowCache = {}
 local lastRainbowColor = nil
 
---  ম্যাথমেটিক্যাল গোল্ড চেকার (যেকোনো গোল্ড/হলুদ শেড অটোমেটিক ধরবে)
+-- Mathematical Gold Checker (catches any gold/yellow shade automatically)
 local function isGold(c)
     if typeof(c) ~= "Color3" then return false end
     local h, s, v = c:ToHSV()
-    -- শুধুমাত্র গোল্ড/হলুদ শেড (Hue 30°-72°), যেটা অফ বা ডার্ক গ্রে নয়
+    -- Only gold/yellow shade (Hue 30-72)
     return (h >= 0.08 and h <= 0.20 and s >= 0.40 and v >= 0.30)
 end
 
@@ -612,13 +681,12 @@ local function cacheElement(obj)
     end)
 end
 
---  Get Premium বাটনের কালো স্ট্রোক/গ্লিচ চিরতরে মুছে ফেলা ও ক্যাশ করা
+-- Deleting black strokes/glitches from 'Get Premium' button and cache
 task.spawn(function()
     task.wait(0.5)
     for _, obj in ipairs(ScreenGui:GetDescendants()) do
         if obj:IsA("TextButton") and obj.Text == "GET PREMIUM" then
             for _, child in ipairs(obj:GetChildren()) do
-                -- বিরক্তিকর কালো বর্ডার ও গ্লেয়ার ডিলিট করা হচ্ছে
                 if child:IsA("UIStroke") or child:IsA("UIGradient") or (child:IsA("Frame") and child.BackgroundTransparency == 0) then
                     child:Destroy()
                 end
@@ -628,12 +696,12 @@ task.spawn(function()
     end
 end)
 
---  নতুন চ্যাট বাবল বা মেনু আসলে অটো-ক্যাশ হবে
+-- Auto cache when a new chat bubble or menu appears
 ScreenGui.DescendantAdded:Connect(function(obj)
     task.delay(0.05, function() cacheElement(obj) end)
 end)
 
---  AI কমান্ড হুকস
+-- AI Command Hooks
 local function registerToggle(name, func) getgenv().ToggleUpdaters[name] = func getgenv().ToggleUpdaters[string.lower(name)] = func end
 local function registerSlider(name, func) getgenv().SliderUpdaters[name] = func getgenv().SliderUpdaters[string.lower(name)] = func end
 
@@ -643,7 +711,7 @@ registerSlider("MenuHeight", function(val) Config.MenuHeight = tonumber(val) or 
 registerSlider("MenuWidth", function(val) Config.MenuWidth = tonumber(val) or 580; if MainFrame then TweenService:Create(MainFrame, TweenInfo.new(0.4), {Size = UDim2.new(0, Config.MenuWidth, 0, Config.MenuHeight)}):Play() end end)
 registerSlider("MenuTransparency", function(val) Config.MenuTransparency = tonumber(val) and (tonumber(val) / 10) or 0; if MainFrame then TweenService:Create(MainFrame, TweenInfo.new(0.3), {BackgroundTransparency = Config.MenuTransparency}):Play() end end)
 
---  ম্যাজিক রেন্ডার লুপ (Smart Math Hooking)
+-- Magic Render Loop (Smart Math Hooking)
 RunService.RenderStepped:Connect(function(deltaTime)
     local isRainbow = Config.MenuRainbow
     local newRainbow = isRainbow and Color3.fromHSV((tick() % 5) / 5, 1, 1) or nil
@@ -660,7 +728,6 @@ RunService.RenderStepped:Connect(function(deltaTime)
                     if isOwned then item.Obj.Color = newSeq end
                 else
                     local currentC = item.Obj[item.Prop]
-                    -- ম্যাজিক: শুধুমাত্র যদি এলিমেন্টটা বর্তমানে গোল্ড থাকে অথবা আমরা আগের ফ্রেমে রেইনবো করে থাকি!
                     if isGold(currentC) or currentC == lastRainbowColor then
                         item.Obj[item.Prop] = newRainbow
                     end
@@ -669,7 +736,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
         end
         lastRainbowColor = newRainbow
     else
-        -- রেইনবো অফ করলে শুধু আমাদের কন্ট্রোল করা আইটেমগুলো আগের অরিজিনাল কালারে ফিরবে
+        -- Restoring original colors if rainbow is off
         if lastRainbowColor then
             for _, item in ipairs(RainbowCache) do
                 if item.Obj and item.Obj.Parent then
@@ -690,7 +757,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
         end
     end
     
-    -- লোগো স্পিন
+    -- Logo Spin
     if Config.LogoSpeed > 0 and LogoButton then
         LogoButton.Rotation = (LogoButton.Rotation + (Config.LogoSpeed * deltaTime * 5)) % 360
     else
@@ -698,40 +765,27 @@ RunService.RenderStepped:Connect(function(deltaTime)
     end
 end)
 
-
-
-
-
-
-
-
-
-
-
-
--- 📑 [UI] TABS SETUP (MODULAR & LIMIT-FREE DESIGN)
--- ⚠️ AI/CLAUDE INSTRUCTION: 
--- To completely avoid the "200 local variables" limit on mobile executors, 
--- EVERY new tab MUST be wrapped in a `do ... end` block. Inside that block, 
--- use a single table (e.g., `local UI = {}`) to store all UI instances.
--- DO NOT create standalone `local` UI variables inside the main script scope.
+-- ========================================================================
+-- 📑 [UI] TABS SETUP
+-- ========================================================================
 -- === TAB 1: PLAYER ===
 do
     local UI = {}
     UI.TabLeft, UI.TabRight, UI.TabIndex = createTabAndPage("PLAYER", 73882870781409)
 
     UI.AdvTackleMenu = createCFeature(UI.TabLeft, "ADVANCED TACKLE", UI.TabIndex)
-    getgenv().ToggleUpdaters["AdvanceShootUI"] = addToggle(UI.AdvTackleMenu, "Advance Shoot UI", function(state) ShootCircle.Visible = state end)
-    getgenv().ToggleUpdaters["AdvanceTackleUI"] = addToggle(UI.AdvTackleMenu, "Advance Tackle UI", function(state) TackleCircle.Visible = state end)
+    getgenv().ToggleUpdaters["AdvanceShootUI"] = addToggle(UI.AdvTackleMenu, "Advance Shoot UI", false, function(state) ShootCircle.Visible = state end)
+    getgenv().ToggleUpdaters["AdvanceTackleUI"] = addToggle(UI.AdvTackleMenu, "Advance Tackle UI", false, function(state) TackleCircle.Visible = state end)
 
     UI.AutoPlayMenu = createCFeature(UI.TabLeft, "AUTO TACKLE & DRIBBLE", UI.TabIndex)
-    getgenv().ToggleUpdaters["AutoTackleEnabled"] = addToggle(UI.AutoPlayMenu, "Auto tackle", function(state) Config.AutoTackleEnabled = state end)
-    getgenv().ToggleUpdaters["AutoDribbleEnabled"] = addToggle(UI.AutoPlayMenu, "Auto Dribble (Strict)", function(state) Config.AutoDribbleEnabled = state end)
-    getgenv().ToggleUpdaters["TackleBoostEnabled"] = addToggle(UI.AutoPlayMenu, "Tackle Boost", function(state) Config.TackleBoostEnabled = state end)
-    getgenv().SliderUpdaters["TackleBoostPower"] = addSlider(UI.AutoPlayMenu, "Boost Power (10-60)", 10, 60, function(val) Config.TackleBoostPower = val / 10 end)
+    getgenv().ToggleUpdaters["AutoTackleEnabled"] = addToggle(UI.AutoPlayMenu, "Auto tackle", false, function(state) Config.AutoTackleEnabled = state end)
+    getgenv().ToggleUpdaters["AutoDribbleEnabled"] = addToggle(UI.AutoPlayMenu, "Auto Dribble (Strict)", false, function(state) Config.AutoDribbleEnabled = state end)
+    getgenv().ToggleUpdaters["TackleBoostEnabled"] = addToggle(UI.AutoPlayMenu, "Tackle Boost", false, function(state) Config.TackleBoostEnabled = state end)
+    getgenv().SliderUpdaters["TackleBoostPower"] = addSlider(UI.AutoPlayMenu, "Boost Power (10-60)", 10, 60, false, function(val) Config.TackleBoostPower = val / 10 end)
 
     UI.MovementMenu = createCFeature(UI.TabLeft, "PLAYER MOVEMENT", UI.TabIndex)
-    getgenv().ToggleUpdaters["InfinityStaminaEnabled"] = addToggle(UI.MovementMenu, "Infinity Stamina", function(state) 
+    -- 🔴 VIP LOCKED TOGGLE
+    getgenv().ToggleUpdaters["InfinityStaminaEnabled"] = addToggle(UI.MovementMenu, "Infinity Stamina", true, function(state) 
         Config.InfinityStaminaEnabled = state 
         local char = player.Character
         if state then
@@ -751,34 +805,31 @@ do
                 end
             end
             Config.InfinityStaminaEnabled = false
-            adjustRunAnimationSpeed() 
+            -- adjustRunAnimationSpeed() 
         end
     end)
-    getgenv().ToggleUpdaters["SafeSpeedEnabled"] = addToggle(UI.MovementMenu, "Safe Speed", function(state) Config.SafeSpeedEnabled = state end)
-    getgenv().SliderUpdaters["SpeedPower"] = addSlider(UI.MovementMenu, "Extra Speed Power", 5, 60, function(val) Config.SpeedPower = val end)
+    getgenv().ToggleUpdaters["SafeSpeedEnabled"] = addToggle(UI.MovementMenu, "Safe Speed", false, function(state) Config.SafeSpeedEnabled = state end)
+    -- 🔴 VIP LOCKED SLIDER
+    getgenv().SliderUpdaters["SpeedPower"] = addSlider(UI.MovementMenu, "Extra Speed Power", 5, 60, true, function(val) Config.SpeedPower = val end)
 
     UI.CurveMenu = createCFeature(UI.TabRight, "CURVE SYSTEM", UI.TabIndex)
-    getgenv().ToggleUpdaters["AutoCurveEnabled"] = addToggle(UI.CurveMenu, "Auto curve", function(state) Config.AutoCurveEnabled = state end)
-    getgenv().SliderUpdaters["CurveRate"] = addSlider(UI.CurveMenu, "Curve Power (%)", 5, 50, function(val) Config.CurveRate = val end) 
+    -- 🔴 VIP LOCKED TOGGLE
+    getgenv().ToggleUpdaters["AutoCurveEnabled"] = addToggle(UI.CurveMenu, "Auto curve", true, function(state) Config.AutoCurveEnabled = state end)
+    getgenv().SliderUpdaters["CurveRate"] = addSlider(UI.CurveMenu, "Curve Power (%)", 5, 50, false, function(val) Config.CurveRate = val end) 
 
     UI.HitboxMenu = createCFeature(UI.TabRight, "HITBOX & REACH", UI.TabIndex)
-    getgenv().ToggleUpdaters["ReachEnabled"] = addToggle(UI.HitboxMenu, "Enable Hitbox Reach", function(state) Config.ReachEnabled = state end)
-    getgenv().ToggleUpdaters["ReachVisualizer"] = addToggle(UI.HitboxMenu, "Hitbox Visualizer", function(state) Config.ReachVisualizer = state end)
-    getgenv().SliderUpdaters["ReachX"] = addSlider(UI.HitboxMenu, "Reach X (Width)", 5, 50, function(val) Config.ReachX = val end)
-    getgenv().SliderUpdaters["ReachY"] = addSlider(UI.HitboxMenu, "Reach Y (Height)", 5, 50, function(val) Config.ReachY = val end)
-    getgenv().SliderUpdaters["ReachZ"] = addSlider(UI.HitboxMenu, "Reach Z (Length)", 5, 50, function(val) Config.ReachZ = val end)
+    getgenv().ToggleUpdaters["ReachEnabled"] = addToggle(UI.HitboxMenu, "Enable Hitbox Reach", false, function(state) Config.ReachEnabled = state end)
+    getgenv().ToggleUpdaters["ReachVisualizer"] = addToggle(UI.HitboxMenu, "Hitbox Visualizer", false, function(state) Config.ReachVisualizer = state end)
+    getgenv().SliderUpdaters["ReachX"] = addSlider(UI.HitboxMenu, "Reach X (Width)", 5, 50, false, function(val) Config.ReachX = val end)
+    getgenv().SliderUpdaters["ReachY"] = addSlider(UI.HitboxMenu, "Reach Y (Height)", 5, 50, false, function(val) Config.ReachY = val end)
+    getgenv().SliderUpdaters["ReachZ"] = addSlider(UI.HitboxMenu, "Reach Z (Length)", 5, 50, false, function(val) Config.ReachZ = val end)
 end
-
-
-
---here tab 3--
 
 -- === TAB 5: ABOUT ===
 do
     local UI = {}
     UI.AboutTabMain, UI.AboutTabIndex = createTabAndPage("ABOUT", 130713395923743, true) 
 
-    -- 🔧 FIX: Force standard layout sorting so things don't go to the bottom
     local mainLayout = UI.AboutTabMain:FindFirstChildOfClass("UIListLayout")
     if mainLayout then
         mainLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -794,20 +845,20 @@ do
     UI.CreditLabel.TextColor3 = Color_BrightGold
     UI.CreditLabel.Font = Enum.Font.GothamBlack
     UI.CreditLabel.TextSize = 22
-    UI.CreditLabel.TextXAlignment = Enum.TextXAlignment.Center -- 100% গ্যারান্টি মাঝখানে থাকবে
+    UI.CreditLabel.TextXAlignment = Enum.TextXAlignment.Center
 
     -- 📊 2. PRO STATUS PANEL
     UI.InfoBox = Instance.new("Frame", UI.AboutTabMain)
     UI.InfoBox.Name = "02_InfoBox"
     UI.InfoBox.LayoutOrder = 2
-    UI.InfoBox.Size = UDim2.new(1, 0, 0, 125) -- বক্সের হাইট একটু বাড়ানো হলো স্পেসিংয়ের জন্য
+    UI.InfoBox.Size = UDim2.new(1, 0, 0, 125) 
     UI.InfoBox.BackgroundColor3 = Color_BgLighter
     Instance.new("UICorner", UI.InfoBox).CornerRadius = UDim.new(0, 6)
     UI.InfoStroke = Instance.new("UIStroke", UI.InfoBox)
     UI.InfoStroke.Color = Color_PrimaryGold
     UI.InfoStroke.Thickness = 1
     
-    -- 🎯 "SPECIAL INFO" Header (পারফেক্ট সেন্টার)
+    -- 🎯 "SPECIAL INFO" Header
     UI.InfoTopBar = Instance.new("Frame", UI.InfoBox)
     UI.InfoTopBar.Size = UDim2.new(1, 0, 0, 32)
     UI.InfoTopBar.BackgroundTransparency = 1
@@ -822,7 +873,7 @@ do
     UI.SpecialInfoTitle.TextXAlignment = Enum.TextXAlignment.Center
     UI.SpecialInfoTitle.TextYAlignment = Enum.TextYAlignment.Center
 
-    -- 📏 Divider Line (টাইটেল আর ডেটার মাঝখানে সুন্দর দাগ)
+    -- 📏 Divider Line
     UI.HeaderDivider = Instance.new("Frame", UI.InfoBox)
     UI.HeaderDivider.Size = UDim2.new(1, -20, 0, 1)
     UI.HeaderDivider.Position = UDim2.new(0, 10, 0, 32)
@@ -830,7 +881,7 @@ do
     UI.HeaderDivider.BackgroundTransparency = 0.5
     UI.HeaderDivider.BorderSizePixel = 0
 
-    -- ডেটার জন্য গ্রিড কন্টেইনার
+    -- Grid Container
     UI.GridContainer = Instance.new("Frame", UI.InfoBox)
     UI.GridContainer.Size = UDim2.new(1, 0, 1, -33)
     UI.GridContainer.Position = UDim2.new(0, 0, 0, 33)
@@ -858,26 +909,20 @@ do
         return lbl
     end
 
-    UI.StatusInfoLabel = createInfoLine("STATUS: ", getgenv().IsVIP and "PRO" or "FREE", 1)
+    UI.StatusInfoLabel = createInfoLine("STATUS: ", getgenv().IsVIP and "VIP" or "FREE", 1)
     createInfoLine("USER: ", (player and player.Name or "Unknown"), 2)
     createInfoLine("GAME: ", "REALISTIC STREET SOCCER", 3)
     UI.TeamInfoLabel = createInfoLine("TEAM: ", "CALCULATING...", 4)
     UI.FpsLabel = createInfoLine("FPS: ", "CALCULATING...", 5)
     UI.PingLabel = createInfoLine("PING: ", "CALCULATING...", 6)
     UI.CoordLabel = createInfoLine("POS: ", "X:0 Y:0 Z:0", 7)
-    
-    local deviceType = UserInputService.TouchEnabled and "MOBILE" or "PC"
-    createInfoLine("DEVICE: ", deviceType, 8)
-
-    -- 🔴 এই লাইনটি নতুন যোগ করুন (এখানে আপনার Key-টি দেখাবে)
-    createInfoLine("ACTIVE KEY: ", MyLoginKey, 9)
-
+    createInfoLine("DEVICE: ", DeviceType, 8)
 
     local frames = 0
     RunService.RenderStepped:Connect(function() frames = frames + 1 end)
     task.spawn(function()
         while task.wait(1) do
-            UI.StatusInfoLabel.Text = "STATUS: " .. (getgenv().IsVIP and "PRO" or "FREE")
+            UI.StatusInfoLabel.Text = "STATUS: " .. (getgenv().IsVIP and "VIP" or "FREE")
             UI.StatusInfoLabel.TextColor3 = getgenv().IsVIP and Color_PrimaryGold or Color3.fromRGB(220, 220, 220)
             UI.FpsLabel.Text = "FPS: " .. tostring(frames)
             frames = 0
@@ -935,22 +980,6 @@ do
 
     createWarningCard(UI.AboutTabMain, "05_GreenCard", 5, Color3.fromRGB(80, 220, 100), "🌟 MODULE INSTRUCTIONS & WARNINGS 🌟\n\n• Advance Shoot & Tackle: Highly stable and working perfectly.\n• Auto Tackle & Dribble: Works effectively but might trigger executor kicks.\n• Safe Speed Boost: Do not overuse! Excessive speed can flag the anti-cheat.\n• Auto Curve System: Bending physics can act unpredictably.\n\n⚠️ SECURITY NOTICE: This script is not 100% anti-ban. Use a paid executor for max safety.", Enum.TextXAlignment.Center, 13)
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 -- === TAB 4: PREMIUM ===
 do
@@ -1171,7 +1200,7 @@ do
     UI.Spacer.Size = UDim2.new(1, 0, 0, 7) 
     UI.Spacer.BackgroundTransparency = 1
 
-        UI.GetPremBtn = Instance.new("TextButton", UI.PremContent)
+    UI.GetPremBtn = Instance.new("TextButton", UI.PremContent)
     UI.GetPremBtn.Size = UDim2.new(1, -60, 0, 38)
     UI.GetPremBtn.BackgroundColor3 = Color_PrimaryGold
     UI.GetPremBtn.Text = "GET PREMIUM"
@@ -1186,7 +1215,7 @@ do
     BtnStroke.Thickness = 1.5
     BtnStroke.Transparency = 0.5
 
-    -- ✨ নতুন Glare (আলোর ঝলকানি) ইফেক্ট যা আসল কালার নষ্ট করবে না
+    -- Shine effect for Get Premium button
     local Glare = Instance.new("Frame", UI.GetPremBtn)
     Glare.Size = UDim2.new(0.5, 0, 1, 0)
     Glare.Position = UDim2.new(-0.6, 0, 0, 0)
@@ -1197,22 +1226,19 @@ do
     GlareGrad.Rotation = 45
     GlareGrad.Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 1),
-        NumberSequenceKeypoint.new(0.5, 0.3), -- মাঝখানে চকচকে সাদা আলো
+        NumberSequenceKeypoint.new(0.5, 0.3), 
         NumberSequenceKeypoint.new(1, 1)
     })
 
     task.spawn(function()
         while true do
-            -- আলোটা বাম থেকে ডানে স্লাইড করবে
             TweenService:Create(Glare, TweenInfo.new(0.7, Enum.EasingStyle.Linear), {Position = UDim2.new(1.2, 0, 0, 0)}):Play()
             task.wait(0.7)
-            -- আবার অদৃশ্য অবস্থায় বামে ফিরে আসবে
             Glare.Position = UDim2.new(-0.6, 0, 0, 0)
-            task.wait(2.5) -- আড়াই সেকেন্ড পর পর শাইন করবে
+            task.wait(2.5) 
         end
     end)
     
-    -- ✨ বাটন হোভার (Hover) ইফেক্ট
     UI.GetPremBtn.MouseEnter:Connect(function()
         TweenService:Create(UI.GetPremBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color_BrightGold}):Play()
         TweenService:Create(BtnStroke, TweenInfo.new(0.2), {Transparency = 0, Thickness = 2}):Play()
@@ -1261,10 +1287,6 @@ do
         end 
     end)
 end
-
-
-
-
 
 -- 🔍 [COMPACT & FIXED] SUBTLE & PREMIUM SEARCH HIGHLIGHT
 local activeStrokes, activeHighlightedUIs = {}, {}
@@ -1331,15 +1353,12 @@ SearchView:GetPropertyChangedSignal("Text"):Connect(function()
         
         for _, matchedUI in ipairs(matchedUIs) do
             local flashStroke = Instance.new("UIStroke", matchedUI) 
-            -- হালকা থিকনেস এবং অরিজিনাল কালার
             flashStroke.Color, flashStroke.Thickness, flashStroke.Transparency = Color_PrimaryGold, 1.5, 1
             table.insert(activeStrokes, flashStroke) table.insert(activeHighlightedUIs, matchedUI)
             
-            -- স্মুথ এবং হালকা গ্লো (কোনো পাগলামি নেই)
             TweenService:Create(matchedUI, TweenInfo.new(0.3), {BackgroundTransparency = 0.6, BackgroundColor3 = Color_PrimaryGold}):Play()
             TweenService:Create(flashStroke, TweenInfo.new(0.3), {Transparency = 0.2}):Play()
             
-            -- ১.৫ সেকেন্ড পর শান্তভাবে ফেড আউট হয়ে যাবে
             task.delay(1.5, function()
                 if matchedUI and matchedUI.Parent then TweenService:Create(matchedUI, TweenInfo.new(0.5), {BackgroundTransparency = 1, BackgroundColor3 = Color_Hover}):Play() end
                 if flashStroke and flashStroke.Parent then TweenService:Create(flashStroke, TweenInfo.new(0.5), {Transparency = 1}):Play() end
@@ -1350,9 +1369,5 @@ SearchView:GetPropertyChangedSignal("Text"):Connect(function()
         task.delay(2.2, function() if string.lower(string.gsub(SearchView.Text, "^%s*(.-)%s*$", "%1")) == currentQuery then clearHighlights() end end)
     end
 end)
-
-
-
-
 
 switchTab(1)
