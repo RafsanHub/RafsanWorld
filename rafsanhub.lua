@@ -7,11 +7,15 @@ local TextService = game:GetService("TextService")
 local player = game.Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- 🔴 Key System থেকে পাঠানো Key এবং Subscription রিসিভ করা হচ্ছে ও মুছে ফেলা হচ্ছে
+-- 🔴 Key System থেকে পাঠানো Key এবং Subscription রিসিভ করা হচ্ছে
 local MyLoginKey = _G.RafsanHubActiveKey or "No_Key_Found"
-local CurrentPlan = tostring(_G.RafsanHubSubscription or "FREE"):upper() -- ফায়ারবেসের সাবস্ক্রিপশন প্ল্যান
+local CurrentPlan = tostring(_G.RafsanHubSubscription or "FREE"):upper() 
+local MyHwidHash = _G.RafsanHubHWID or game:GetService("RbxAnalyticsService"):GetClientId()
+
+-- সিকিউরিটির জন্য গ্লোবাল ভেরিয়েবল মুছে ফেলা
 _G.RafsanHubActiveKey = nil 
 _G.RafsanHubSubscription = nil 
+_G.RafsanHubHWID = nil
 
 -- ⚙️ [CONFIG] মেইন সেটিংস
 local Config = {
@@ -126,13 +130,19 @@ local CloseButton = Instance.new("TextButton", MainFrame) CloseButton.Size, Clos
 local CloseGrad = Instance.new("UIGradient", CloseButton) CloseGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color_BrightGold), ColorSequenceKeypoint.new(1, Color_PrimaryGold)}) 
 
 
--- 🔴 [FIXED] DYNAMIC VIP MAKER
+-- 🔴 [AUTO-RESIZING] DYNAMIC VIP MAKER
 local StatusBadge = Instance.new("Frame", MainFrame)
-StatusBadge.Size = UDim2.new(0, 45, 0, 20)
+StatusBadge.Size = UDim2.new(0, 0, 0, 20)
+StatusBadge.AutomaticSize = Enum.AutomaticSize.X 
+StatusBadge.AnchorPoint = Vector2.new(1, 0)
 StatusBadge.Position = UDim2.new(1, -135, 0, 14) 
 StatusBadge.BorderSizePixel = 0
 StatusBadge.ClipsDescendants = true
 Instance.new("UICorner", StatusBadge).CornerRadius = UDim.new(0, 6)
+
+local BadgePadding = Instance.new("UIPadding", StatusBadge)
+BadgePadding.PaddingLeft = UDim.new(0, 8)
+BadgePadding.PaddingRight = UDim.new(0, 8)
 
 local StatusText = Instance.new("TextLabel", StatusBadge)
 StatusText.Size = UDim2.new(1, 0, 1, 0)
@@ -140,6 +150,7 @@ StatusText.BackgroundTransparency = 1
 StatusText.Font = Enum.Font.GothamBold
 StatusText.TextSize = 13 
 StatusText.TextColor3 = Color3.fromRGB(255, 255, 255)
+StatusText.TextXAlignment = Enum.TextXAlignment.Center
 
 local ShinyGlow = Instance.new("Frame", StatusBadge)
 ShinyGlow.Size = UDim2.new(0.5, 0, 1, 0)
@@ -166,7 +177,7 @@ getgenv().UpdateVIPStatus = function(planName)
     else
         getgenv().IsVIP = true
         StatusBadge.BackgroundColor3 = Color_PrimaryGold
-        StatusText.Text = planName -- PRO বা VIP দেখাবে
+        StatusText.Text = planName 
         ShinyGlow.Visible = true
     end
 end
@@ -186,6 +197,57 @@ task.spawn(function()
         end
     end
 end)
+
+-- 🔴 [HEARTBEAT-2] DYNAMIC SUBSCRIPTION CHECKER
+task.spawn(function()
+    local RenderApiUrl = "https://pybend.onrender.com/verify-key"
+    local req = request or http_request or (syn and syn.request) or (http and http.request)
+    if not req then return end
+    
+    while task.wait(60) do -- প্রতি ৬০ সেকেন্ড পর পর চেক করবে
+        local success, response = pcall(function()
+            return req({
+                Url = RenderApiUrl,
+                Method = "POST",
+                Body = HttpService:JSONEncode({
+                    key = MyLoginKey, 
+                    hwid = MyHwidHash
+                }),
+                Headers = {["Content-Type"] = "application/json"}
+            })
+        end)
+
+        if success and response and response.StatusCode == 200 then
+            local decodeSuccess, decoded = pcall(function() return HttpService:JSONDecode(response.Body) end)
+            if decodeSuccess and decoded and decoded.valid then
+                local newPlan = tostring(decoded.plan or "FREE"):upper()
+                
+                -- যদি স্ট্যাটাস পরিবর্তন হয় (PRO থেকে FREE বা অন্য কিছু)
+                if newPlan ~= CurrentPlan then
+                    CurrentPlan = newPlan
+                    if getgenv().UpdateVIPStatus then
+                        getgenv().UpdateVIPStatus(CurrentPlan)
+                    end
+                    
+                    -- 🔴 অটো-লক VIP ফিচার: যদি FREE হয়ে যায় তবে সব অফ করে দেবে
+                    if CurrentPlan == "FREE" then
+                        local vipFeatures = {
+                            "AdvanceShootUI", "AdvanceTackleUI", "AutoTackleEnabled", 
+                            "AutoDribbleEnabled", "TackleBoostEnabled", "InfinityStaminaEnabled", 
+                            "SafeSpeedEnabled", "AutoCurveEnabled"
+                        }
+                        for _, feature in ipairs(vipFeatures) do
+                            if getgenv().ToggleUpdaters and getgenv().ToggleUpdaters[feature] then
+                                pcall(function() getgenv().ToggleUpdaters[feature](false) end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
 
 local VerticalDivider = Instance.new("Frame", MainFrame) VerticalDivider.Size, VerticalDivider.Position, VerticalDivider.BackgroundColor3, VerticalDivider.BackgroundTransparency, VerticalDivider.BorderSizePixel = UDim2.new(0, 2, 1, -66), UDim2.new(0, 115, 0, 56), Color_PrimaryGold, 0.7, 0 
 
@@ -655,7 +717,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
     end
 end)
 
--- 📑 [UI] TABS SETUP (MODULAR & LIMIT-FREE DESIGN)
+-- 📑 [UI] TABS SETUP
 do
     local UI = {}
     UI.TabLeft, UI.TabRight, UI.TabIndex = createTabAndPage("PLAYER", 73882870781409)
@@ -787,7 +849,6 @@ do
         return lbl
     end
 
-    -- 🔴 [FIXED] Status এখন ফায়ারবেস থেকে পাওয়া CurrentPlan অনুযায়ী দেখাবে
     UI.StatusInfoLabel = createInfoLine("STATUS: ", getgenv().IsVIP and CurrentPlan or "FREE", 1)
     createInfoLine("USER: ", (player and player.Name or "Unknown"), 2)
     createInfoLine("GAME: ", "REALISTIC STREET SOCCER", 3)
@@ -799,13 +860,10 @@ do
     local deviceType = UserInputService.TouchEnabled and "MOBILE" or "PC"
     createInfoLine("DEVICE: ", deviceType, 8)
 
-    -- 🔴 [FIXED] ACTIVE KEY লাইনটি সম্পূর্ণ রিমুভ করা হয়েছে
-
     local frames = 0
     RunService.RenderStepped:Connect(function() frames = frames + 1 end)
     task.spawn(function()
         while task.wait(1) do
-            -- 🔴 [FIXED] Status আপডেট লুপ
             UI.StatusInfoLabel.Text = "STATUS: " .. (getgenv().IsVIP and CurrentPlan or "FREE")
             UI.StatusInfoLabel.TextColor3 = getgenv().IsVIP and Color_PrimaryGold or Color3.fromRGB(220, 220, 220)
             UI.FpsLabel.Text = "FPS: " .. tostring(frames)
