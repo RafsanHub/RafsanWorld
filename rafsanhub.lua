@@ -1,4 +1,3 @@
-
 -- // [CORE SERVICES] Essential Roblox services for UI, HTTP requests, and Tweening.
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -18,6 +17,98 @@ local MyHwidHash = _G.RafsanHubHWID or game:GetService("RbxAnalyticsService"):Ge
 _G.RafsanHubActiveKey = nil 
 _G.RafsanHubSubscription = nil 
 _G.RafsanHubHWID = nil
+
+-- =========================================================================
+-- 🔒 [SECURITY CORE - START]
+-- =========================================================================
+local function getRenderUrl()
+    local bytes = {104, 116, 116, 112, 115, 58, 47, 47, 112, 121, 98, 101, 110, 100, 46, 111, 110, 114, 101, 110, 100, 101, 114, 46, 99, 111, 109}
+    local url = ""
+    for _, b in ipairs(bytes) do url = url .. string.char(b) end
+    return url
+end
+local serverUrl = getRenderUrl()
+
+-- Honeypot traps
+_G.Rafsan_Internal_Key_Bypass_v1 = false
+_G.Unlock_ProMax_Hidden_Dev = false
+
+local function executePermanentBan()
+    local reqFunc = (syn and syn.request) or http_request or request or (http and http.request)
+    local hwidToBan = MyHwidHash
+    
+    -- 1. Send Ban Request to Render Server
+    pcall(function()
+        if reqFunc then
+            reqFunc({
+                Url = serverUrl .. "/ban-hacker",
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode({hwid = hwidToBan, reason = "Honeypot Triggered in Main Hub"})
+            })
+        end
+    end)
+    
+    -- 2. Delete Key File
+    pcall(function()
+        if isfile and isfile("RafsanHub/RafsanHubKey.txt") then delfile("RafsanHub/RafsanHubKey.txt") end
+    end)
+
+    -- 3. Destroy Existing UI
+    local CoreGui = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui") or player:WaitForChild("PlayerGui")
+    for _, child in ipairs(CoreGui:GetChildren()) do
+        if child:IsA("ScreenGui") and child.Name ~= "RafsanHWIDBan" then
+            pcall(function() child:Destroy() end)
+        end
+    end
+
+    -- 4. Show Pitch-Black Ban UI
+    local BanScreen = Instance.new("ScreenGui", CoreGui)
+    BanScreen.Name = "RafsanHWIDBan"
+    
+    local Frame = Instance.new("Frame", BanScreen)
+    Frame.Size = UDim2.new(1, 0, 1, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    
+    local UIStroke = Instance.new("UIStroke", Frame)
+    UIStroke.Color = Color3.fromRGB(255, 204, 0)
+    UIStroke.Thickness = 5
+    
+    local TextLabel = Instance.new("TextLabel", Frame)
+    TextLabel.Size = UDim2.new(0, 400, 0, 100)
+    TextLabel.Position = UDim2.new(0.5, -200, 0.4, -50)
+    TextLabel.BackgroundTransparency = 1
+    TextLabel.Text = "🚫 SECURITY ALERT 🚫\nMalicious Activity Detected.\nYour Device is Banned."
+    TextLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    TextLabel.TextSize = 25
+    TextLabel.Font = Enum.Font.Code
+    
+    local CancelBtn = Instance.new("TextButton", Frame)
+    CancelBtn.Size = UDim2.new(0, 200, 0, 50)
+    CancelBtn.Position = UDim2.new(0.5, -100, 0.6, 0)
+    CancelBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    CancelBtn.Text = "CLOSE & STOP SCRIPT"
+    CancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    
+    CancelBtn.MouseButton1Click:Connect(function()
+        BanScreen:Destroy()
+    end)
+
+    -- Halt Execution
+    task.wait(9e9)
+end
+
+-- Anti-Tamper / Honeypot Loop
+task.spawn(function()
+    while task.wait(3) do
+        if _G.Rafsan_Internal_Key_Bypass_v1 or _G.Unlock_ProMax_Hidden_Dev then
+            executePermanentBan()
+        end
+    end
+end)
+-- =========================================================================
+-- 🔒 [SECURITY CORE - END]
+-- =========================================================================
 
 -- ⚙️ [CONFIG] 
 -- // Main Settings Table.
@@ -191,15 +282,12 @@ getgenv().UpdateVIPStatus = function(planName)
         if GlowOverlay then GlowOverlay.Visible = true end
     end
     
-    -- 🔒 VIP স্ট্যাটাস অনুযায়ী তালা হাইড/শো এবং টেক্সট স্লাইড অ্যানিমেশন!
     if getgenv().PremiumLocks then
         for _, item in ipairs(getgenv().PremiumLocks) do
-            -- তালা হাইড/শো করবে
             if type(item) == "table" and item.Lock and item.Lock.Parent then
                 item.Lock.Visible = not getgenv().IsVIP
             end
             
-            -- টেক্সট স্মুথলি ডানে/বামে সরাবে (ফাঁকা জায়গা ফিলাপ করার জন্য)
             if type(item) == "table" and item.Label and item.Label.Parent then
                 local targetPos = getgenv().IsVIP and item.OriginalPos or item.ShiftedPos
                 TweenService:Create(item.Label, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos}):Play()
@@ -228,22 +316,21 @@ end)
 -- 🔴 [HEARTBEAT LOOP: SECURITY & BAN HANDLER]
 -- // Ping Render server every 20 seconds (Only for PRO/PRO MAX Users)
 task.spawn(function()
-    local RenderApiUrl = "https://pybend.onrender.com/verify-key"
+    local RenderApiUrl = getRenderUrl() .. "/verify-key"
     local req = request or http_request or (syn and syn.request) or (http and http.request)
     if not req then return end
     
     while task.wait(20) do 
         
-        -- 🟢 [FREE USERS] ফায়ারবেসে চেক করার দরকার নেই, শুধু লোকাল সিকিউরিটি চেক হবে
+        -- 🟢 [FREE USERS] 
         if CurrentPlan == "FREE" or CurrentPlan == "" then
-            -- কেউ যদি চিট করে লোকালি VIP অন করার চেষ্টা করে, তাকে ইনস্ট্যান্ট কিক!
             if getgenv().IsVIP == true then
                 player:Kick("🚫 EXPLOIT DETECTED: Fake VIP Access Blocked 🚫")
             end
-            continue -- রেন্ডার সার্ভারে রিকোয়েস্ট পাঠাবে না, লুপ স্কিপ করবে
+            continue 
         end
 
-        -- 🔴 [PRO USERS] রেন্ডার সার্ভার ও ফায়ারবেস চেকিং
+        -- 🔴 [PRO USERS]
         local success, response = pcall(function()
             return req({
                 Url = RenderApiUrl,
@@ -260,7 +347,6 @@ task.spawn(function()
             local decodeSuccess, decoded = pcall(function() return HttpService:JSONDecode(response.Body) end)
             if not decodeSuccess then decoded = {} end
             
-            -- যদি প্রো কি ইনভ্যালিড হয় বা ব্যান থাকে
             if response.StatusCode == 403 or response.StatusCode == 401 or decoded.valid == false then
                 pcall(function() 
                     if delfile then delfile("RafsanHub/RafsanHubKey.txt") end
@@ -272,7 +358,6 @@ task.spawn(function()
                 break 
             end
 
-            -- যদি প্রো কি ভ্যালিড হয় এবং প্ল্যান চেঞ্জ হয়
             if response.StatusCode == 200 and decoded.valid then
                 local newPlan = tostring(decoded.plan or "FREE"):upper()
                 
@@ -489,7 +574,6 @@ local function addToggle(cFeature, text, arg3, arg4)
     Circle.Size, Circle.AnchorPoint, Circle.Position, Circle.BackgroundColor3 = UDim2.new(0, 14, 0, 14), Vector2.new(0, 0.5), UDim2.new(0, 2, 0.5, 0), Color3.fromRGB(200, 200, 200) 
     Instance.new("UICorner", Circle).CornerRadius = UDim.new(1, 0) 
     
-    -- 🔒 লক আইকন (সঠিক সাইজ ও স্কেলিং)
     local LockIcon = Instance.new("ImageLabel", ToggleCont)
     LockIcon.Size = UDim2.new(0, 16, 0, 16) 
     LockIcon.AnchorPoint = Vector2.new(0, 0.5)
@@ -497,18 +581,16 @@ local function addToggle(cFeature, text, arg3, arg4)
     LockIcon.BackgroundTransparency = 1
     LockIcon.Image = "rbxassetid://117482937245151" 
     LockIcon.ImageColor3 = Color3.fromRGB(220, 220, 220) 
-    LockIcon.ScaleType = Enum.ScaleType.Fit -- ছবিকে ফাটা বা স্ট্রেচ হওয়া থেকে বাঁচাবে
+    LockIcon.ScaleType = Enum.ScaleType.Fit 
     LockIcon.Visible = false
     
     if isPremium then
-        -- 🌟 টেবিলের ভেতর অরিজিনাল পজিশন আর শিফটেড পজিশন সেভ করা হলো
         table.insert(getgenv().PremiumLocks, {
             Lock = LockIcon,
             Label = Label,
             OriginalPos = UDim2.new(0, 10, 0, 0),
             ShiftedPos = UDim2.new(0, 32, 0, 0)
         })
-        -- প্রাথমিক সেটআপ
         LockIcon.Visible = not getgenv().IsVIP
         Label.Position = getgenv().IsVIP and UDim2.new(0, 10, 0, 0) or UDim2.new(0, 32, 0, 0)
         Label.Size = getgenv().IsVIP and UDim2.new(1, -50, 1, 0) or UDim2.new(1, -72, 1, 0)
@@ -535,8 +617,6 @@ local function addToggle(cFeature, text, arg3, arg4)
     table.insert(AllSearchItems, { Name = plainText, UI = ToggleCont, cFeature = cFeature })
     return SetState 
 end
-
-
 
 -- 🔒 [NEW] PREMIUM LOCK SLIDER SYSTEM (FIXED POS & SIZE)
 local function addSlider(cFeature, text, minVal, maxVal, arg5, arg6)
@@ -572,7 +652,7 @@ local function addSlider(cFeature, text, minVal, maxVal, arg5, arg6)
     LockIcon.BackgroundTransparency = 1
     LockIcon.Image = "rbxassetid://117482937245151"
     LockIcon.ImageColor3 = Color3.fromRGB(220, 220, 220)
-    LockIcon.ScaleType = Enum.ScaleType.Fit -- ছবিকে ফাটা বা স্ট্রেচ হওয়া থেকে বাঁচাবে
+    LockIcon.ScaleType = Enum.ScaleType.Fit 
     LockIcon.Visible = false
 
     if isPremium then
@@ -582,7 +662,6 @@ local function addSlider(cFeature, text, minVal, maxVal, arg5, arg6)
             OriginalPos = UDim2.new(0, 10, 0, 0),
             ShiftedPos = UDim2.new(0, 32, 0, 0)
         })
-        -- প্রাথমিক সেটআপ
         LockIcon.Visible = not getgenv().IsVIP
         TitleLabel.Position = getgenv().IsVIP and UDim2.new(0, 10, 0, 0) or UDim2.new(0, 32, 0, 0)
         TitleLabel.Size = getgenv().IsVIP and UDim2.new(1, -40, 0, 18) or UDim2.new(1, -62, 0, 18)
@@ -624,8 +703,6 @@ local function addSlider(cFeature, text, minVal, maxVal, arg5, arg6)
     table.insert(AllSearchItems, { Name = plainText, UI = SliderFrame, cFeature = cFeature })
     return setSliderValue
 end
-
-
 
 local activeColorBox, activeColorCallback = nil, nil
 local GlobalPicker = Instance.new("Frame", ScreenGui) GlobalPicker.Name, GlobalPicker.Size, GlobalPicker.AnchorPoint, GlobalPicker.BackgroundColor3, GlobalPicker.Visible, GlobalPicker.Active, GlobalPicker.ZIndex = "ColorPickerLayout", UDim2.new(0, 180, 0, 330), Vector2.new(0.5, 0.5), Color_BgLighter, false, true, 100 
@@ -868,7 +945,6 @@ do
     UI.TabLeft, UI.TabRight, UI.TabIndex = createTabAndPage("PLAYER", 73882870781409)
 
     UI.AdvTackleMenu = createCFeature(UI.TabLeft, "ADVANCED TACKLE", UI.TabIndex)
-    -- 🔒 PREMIUM (true)
     getgenv().ToggleUpdaters["AdvanceShootUI"] = addToggle(UI.AdvTackleMenu, "Advance Shoot UI", true, function(state) ShootCircle.Visible = state end)
     getgenv().ToggleUpdaters["AdvanceTackleUI"] = addToggle(UI.AdvTackleMenu, "Advance Tackle UI", true, function(state) TackleCircle.Visible = state end)
 
@@ -910,7 +986,6 @@ do
     getgenv().SliderUpdaters["CurveRate"] = addSlider(UI.CurveMenu, "Curve Power (%)", 5, 50, true, function(val) Config.CurveRate = val end) 
 
     UI.HitboxMenu = createCFeature(UI.TabRight, "HITBOX & REACH", UI.TabIndex)
-    -- FREE (No true)
     getgenv().ToggleUpdaters["ReachEnabled"] = addToggle(UI.HitboxMenu, "Enable Hitbox Reach", function(state) Config.ReachEnabled = state end)
     getgenv().ToggleUpdaters["ReachVisualizer"] = addToggle(UI.HitboxMenu, "Hitbox Visualizer", function(state) Config.ReachVisualizer = state end)
     getgenv().SliderUpdaters["ReachX"] = addSlider(UI.HitboxMenu, "Reach X (Width)", 5, 50, function(val) Config.ReachX = val end)
