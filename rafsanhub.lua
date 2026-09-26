@@ -1,3 +1,4 @@
+
 -- // [CORE SERVICES] Essential Roblox services for UI, HTTP requests, and Tweening.
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -29,13 +30,15 @@ local function getRenderUrl()
 end
 local serverUrl = getRenderUrl()
 
--- Honeypot traps
-_G.Rafsan_Internal_Key_Bypass_v1 = false
-_G.Unlock_ProMax_Hidden_Dev = false
+-- =========================================================================
+-- 🪤 [HONEYPOT TRAPS / FAKE VARIABLES - EXTENDED] 
+-- =========================================================================
 
-local function executePermanentBan()
+local function executePermanentBan(reasonText, severityLevel)
     local reqFunc = (syn and syn.request) or http_request or request or (http and http.request)
     local hwidToBan = MyHwidHash
+    local rText = reasonText or "Honeypot Triggered in Main Hub"
+    local sLevel = severityLevel or "High"
     
     -- 1. Send Ban Request to Render Server
     pcall(function()
@@ -44,7 +47,11 @@ local function executePermanentBan()
                 Url = serverUrl .. "/ban-hacker",
                 Method = "POST",
                 Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode({hwid = hwidToBan, reason = "Honeypot Triggered in Main Hub"})
+                Body = HttpService:JSONEncode({
+                    hwid = hwidToBan, 
+                    reason = rText,
+                    severity = sLevel
+                })
             })
         end
     end)
@@ -52,6 +59,7 @@ local function executePermanentBan()
     -- 2. Delete Key File
     pcall(function()
         if isfile and isfile("RafsanHub/RafsanHubKey.txt") then delfile("RafsanHub/RafsanHubKey.txt") end
+        if writefile then writefile("RafsanHub/RafsanHubKey.txt", "") end
     end)
 
     -- 3. Destroy Existing UI
@@ -78,7 +86,7 @@ local function executePermanentBan()
     TextLabel.Size = UDim2.new(0, 400, 0, 100)
     TextLabel.Position = UDim2.new(0.5, -200, 0.4, -50)
     TextLabel.BackgroundTransparency = 1
-    TextLabel.Text = "🚫 SECURITY ALERT 🚫\nMalicious Activity Detected.\nYour Device is Banned."
+    TextLabel.Text = "🚫 SECURITY ALERT 🚫\n" .. rText
     TextLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
     TextLabel.TextSize = 25
     TextLabel.Font = Enum.Font.Code
@@ -94,18 +102,70 @@ local function executePermanentBan()
         BanScreen:Destroy()
     end)
 
-    -- Halt Execution
-    task.wait(9e9)
+    -- [UPDATE: Halt Execution (task.wait) সরিয়ে সেফ কিক বসানো হলো যাতে গেম হ্যাং না করে]
+    player:Kick("\n[RAFSAN HUB SECURITY]\n" .. rText)
 end
 
--- Anti-Tamper / Honeypot Loop
+-- ১. Pre-load Injection Check (আগেই ট্রু করে রাখলে ধরবে)
+if _G.Rafsan_Internal_Key_Bypass_v1 ~= nil and _G.Rafsan_Internal_Key_Bypass_v1 == true then
+    executePermanentBan("Honeypot Triggered: Pre-load injection detected.", "High")
+end
+
+_G.Rafsan_Internal_Key_Bypass_v1 = false  
+_G.RafsanHub_Free_VIP_Access = false      
+_G.Rafsan_Premium_Spoof = false           
+_G.Unlock_ProMax_Hidden_Dev = false       
+_G.Rafsan_Admin_Panel_Unlock = false      
+_G.Force_Disable_Heartbeat = false        
+_G.Rafsan_Bypass_AntiBan = false          
+_G.Disable_Security_Kick = false          
+
+-- [ANTI-TAMPER LOOP: পাহারা দেওয়ার লজিক]
 task.spawn(function()
     while task.wait(3) do
-        if _G.Rafsan_Internal_Key_Bypass_v1 or _G.Unlock_ProMax_Hidden_Dev then
-            executePermanentBan()
+        if _G.Rafsan_Internal_Key_Bypass_v1 
+           or _G.Unlock_ProMax_Hidden_Dev 
+           or _G.RafsanHub_Free_VIP_Access
+           or _G.Rafsan_Premium_Spoof
+           or _G.Rafsan_Admin_Panel_Unlock
+           or _G.Force_Disable_Heartbeat
+           or _G.Rafsan_Bypass_AntiBan
+           or _G.Disable_Security_Kick then
+            
+            executePermanentBan("Honeypot Triggered: Attempted to modify security variables.", "High")
         end
     end
 end)
+
+-- =========================================================================
+-- 📊 [LIVE DATA TRACKING MODULE] - ফায়ারবেসে ডেটা পাঠানো
+-- =========================================================================
+task.spawn(function()
+    local renderTrackingUrl = getRenderUrl() .. "/live-track"
+    local req = request or http_request or (syn and syn.request) or (http and http.request)
+    if not req then return end
+
+    while task.wait(60) do -- প্রতি ৬০ সেকেন্ড পরপর আপডেট (কোনো ল্যাগ হবে না)
+        if _G.Is_Local_Testing then continue end 
+        
+        pcall(function()
+            req({
+                Url = renderTrackingUrl,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode({
+                    username = player.Name,
+                    userId = player.UserId,
+                    hwid = MyHwidHash,
+                    device = (UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled) and "Mobile" or "PC",
+                    gameId = game.PlaceId,
+                    runtime = math.floor(workspace.DistributedGameTime) -- কত সেকেন্ড খেলছে
+                })
+            })
+        end)
+    end
+end)
+
 -- =========================================================================
 -- 🔒 [SECURITY CORE - END]
 -- =========================================================================
@@ -314,15 +374,14 @@ end)
 
 
 -- 🔴 [HEARTBEAT LOOP: SECURITY & BAN HANDLER]
--- // Ping Render server every 20 seconds (Only for PRO/PRO MAX Users)
 task.spawn(function()
     local RenderApiUrl = getRenderUrl() .. "/verify-key"
     local req = request or http_request or (syn and syn.request) or (http and http.request)
     if not req then return end
     
-    while task.wait(20) do 
-        
-        -- 🟢 [FREE USERS] 
+        while task.wait(20) do 
+        if _G.Is_Local_Testing then continue end 
+
         if CurrentPlan == "FREE" or CurrentPlan == "" then
             if getgenv().IsVIP == true then
                 player:Kick("🚫 EXPLOIT DETECTED: Fake VIP Access Blocked 🚫")
@@ -330,7 +389,6 @@ task.spawn(function()
             continue 
         end
 
-        -- 🔴 [PRO USERS]
         local success, response = pcall(function()
             return req({
                 Url = RenderApiUrl,
@@ -350,7 +408,7 @@ task.spawn(function()
             if response.StatusCode == 403 or response.StatusCode == 401 or decoded.valid == false then
                 pcall(function() 
                     if delfile then delfile("RafsanHub/RafsanHubKey.txt") end
-                    writefile("RafsanHub/RafsanHubKey.txt", "") 
+                    if writefile then writefile("RafsanHub/RafsanHubKey.txt", "") end
                 end)
                 
                 local banMsg = decoded.banreason and ("\n\nReason: " .. decoded.banreason) or "\n\nReason: Invalid or Banned Key"
@@ -1149,304 +1207,99 @@ do
     local UI = {}
     UI.PremiumTabMain, UI.PremiumTabIndex = createTabAndPage("PREMIUM", 93767678702544, true)
 
-    UI.PremBox = Instance.new("Frame", UI.PremiumTabMain)
-    UI.PremBox.Size = UDim2.new(1, 6, 0, 110) 
-    UI.PremBox.BackgroundColor3 = Color_BgLighter
-    UI.PremBox.ClipsDescendants = true 
-    Instance.new("UICorner", UI.PremBox).CornerRadius = UDim.new(0, 12) 
+    local function createPremiumCard(planName, priceText, isProMax, benefitsList, layoutOrder)
+        local MainColor, HoverColor = Color_PrimaryGold, Color_BrightGold
+        local isActivePlan = (CurrentPlan == planName)
 
-    UI.PremStroke = Instance.new("UIStroke", UI.PremBox)
-    UI.PremStroke.Color = Color_PrimaryGold
-    UI.PremStroke.Thickness = 1.5
-    UI.PremStroke.Transparency = 0.2
+        local PremBox = Instance.new("Frame", UI.PremiumTabMain)
+        PremBox.LayoutOrder, PremBox.Size, PremBox.BackgroundColor3, PremBox.ClipsDescendants = layoutOrder, UDim2.new(1,0,0,85), Color_BgLighter, true
+        Instance.new("UICorner", PremBox).CornerRadius = UDim.new(0, 12) 
 
-    UI.TopBar = Instance.new("TextButton", UI.PremBox)
-    UI.TopBar.Size = UDim2.new(1, 0, 0, 110)
-    UI.TopBar.BackgroundTransparency = 1
-    UI.TopBar.Text = ""
+        if isProMax then local BoxGrad = Instance.new("UIGradient", PremBox) BoxGrad.Color, BoxGrad.Rotation = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(45,35,15)), ColorSequenceKeypoint.new(1, Color_BgLighter)}), 45 end
 
-    UI.CrownIcon = Instance.new("ImageLabel", UI.TopBar)
-    UI.CrownIcon.Size = UDim2.new(0, 24, 0, 24) 
-    UI.CrownIcon.Position = UDim2.new(0, 15, 0, 10)
-    UI.CrownIcon.BackgroundTransparency = 1
-    UI.CrownIcon.Image = "rbxassetid://10729792019"
-    UI.CrownIcon.ImageColor3 = Color_BrightGold
+        local PremStroke = Instance.new("UIStroke", PremBox)
+        PremStroke.Color, PremStroke.Thickness, PremStroke.Transparency = MainColor, isProMax and 2 or 1.5, 0.2
 
-    task.spawn(function()
-        while true do
-            TweenService:Create(UI.CrownIcon, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0, 15, 0, 7)}):Play()
-            task.wait(1.2)
-            TweenService:Create(UI.CrownIcon, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0, 15, 0, 13)}):Play()
-            task.wait(1.2)
+        local TopBar = Instance.new("TextButton", PremBox)
+        TopBar.Size, TopBar.BackgroundTransparency, TopBar.Text = UDim2.new(1,0,0,85), 1, ""
+
+        local CrownIcon = Instance.new("ImageLabel", TopBar)
+        CrownIcon.Size, CrownIcon.Position, CrownIcon.BackgroundTransparency, CrownIcon.Image, CrownIcon.ImageColor3 = UDim2.new(0,22,0,22), UDim2.new(0,15,0,12), 1, "rbxassetid://10729792019", isProMax and Color3.fromRGB(255,220,100) or HoverColor
+        task.spawn(function() while true do TweenService:Create(CrownIcon, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0,15,0,9)}):Play() task.wait(1.2) TweenService:Create(CrownIcon, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0,15,0,15)}):Play() task.wait(1.2) end end)
+
+        local CardTitle = Instance.new("TextLabel", TopBar)
+        CardTitle.Size, CardTitle.Position, CardTitle.BackgroundTransparency, CardTitle.Text, CardTitle.TextColor3, CardTitle.Font, CardTitle.TextSize, CardTitle.TextXAlignment = UDim2.new(0,160,0,24), UDim2.new(0,45,0,12), 1, planName, Color3.fromRGB(255,255,255), Enum.Font.GothamBold, 20, Enum.TextXAlignment.Left
+        
+        local TitleGradColors = isProMax and {ColorSequenceKeypoint.new(0, Color3.fromRGB(255,230,100)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,255,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,200,50))} or {ColorSequenceKeypoint.new(0, MainColor), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,255,255)), ColorSequenceKeypoint.new(1, MainColor)}
+        local TitleGrad = Instance.new("UIGradient", CardTitle) TitleGrad.Color = ColorSequence.new(TitleGradColors)
+        task.spawn(function() local offset = -1 while true do offset = offset + (task.wait()*1.5) if offset > 1 then offset = -1 end TitleGrad.Offset = Vector2.new(offset, 0) end end)
+
+        local PriceCont = Instance.new("Frame", TopBar)
+        PriceCont.Size, PriceCont.Position, PriceCont.BackgroundTransparency = UDim2.new(0, 200, 0, 35), UDim2.new(0, 15, 0, 38), 1
+        local PriceLayout = Instance.new("UIListLayout", PriceCont) PriceLayout.FillDirection, PriceLayout.SortOrder, PriceLayout.VerticalAlignment, PriceLayout.Padding = Enum.FillDirection.Horizontal, Enum.SortOrder.LayoutOrder, Enum.VerticalAlignment.Bottom, UDim.new(0, 4)
+
+        local Dollar = Instance.new("TextLabel", PriceCont) Dollar.LayoutOrder, Dollar.Size, Dollar.AutomaticSize, Dollar.BackgroundTransparency, Dollar.Text, Dollar.TextColor3, Dollar.Font, Dollar.TextSize = 1, UDim2.new(0,0,0,26), Enum.AutomaticSize.X, 1, "$", isProMax and Color3.fromRGB(255,220,80) or MainColor, Enum.Font.GothamBold, 20
+        local PriceText = Instance.new("TextLabel", PriceCont) PriceText.LayoutOrder, PriceText.Size, PriceText.AutomaticSize, PriceText.BackgroundTransparency, PriceText.Text, PriceText.TextColor3, PriceText.Font, PriceText.TextSize = 2, UDim2.new(0,0,0,32), Enum.AutomaticSize.X, 1, priceText, Color3.fromRGB(255,255,255), Enum.Font.GothamBlack, 36
+        local UnlimText = Instance.new("TextLabel", PriceCont) UnlimText.LayoutOrder, UnlimText.Size, UnlimText.AutomaticSize, UnlimText.BackgroundTransparency, UnlimText.Text, UnlimText.TextColor3, UnlimText.Font, UnlimText.TextSize = 3, UDim2.new(0,0,0,22), Enum.AutomaticSize.X, 1, isProMax and "/Quarter" or "/Month", Color3.fromRGB(150,150,150), Enum.Font.GothamMedium, 13
+
+        if isActivePlan then
+            local ActiveTag = Instance.new("Frame", TopBar) ActiveTag.Size, ActiveTag.AnchorPoint, ActiveTag.Position, ActiveTag.BackgroundColor3 = UDim2.new(0, 80, 0, 22), Vector2.new(1, 0.5), UDim2.new(1, -60, 0.5, 0), Color3.fromRGB(45, 180, 75)
+            Instance.new("UICorner", ActiveTag).CornerRadius = UDim.new(0, 4)
+            local ActiveText = Instance.new("TextLabel", ActiveTag) ActiveText.Size, ActiveText.BackgroundTransparency, ActiveText.Text, ActiveText.TextColor3, ActiveText.Font, ActiveText.TextSize = UDim2.new(1, 0, 1, 0), 1, "ACTIVATED", Color3.fromRGB(255, 255, 255), Enum.Font.GothamBold, 11
+        elseif isProMax then
+            local TagBg = Instance.new("Frame", TopBar) TagBg.Size, TagBg.AnchorPoint, TagBg.Position, TagBg.BackgroundColor3 = UDim2.new(0, 80, 0, 22), Vector2.new(1, 0.5), UDim2.new(1, -60, 0.5, 0), Color3.fromRGB(255, 255, 255)
+            Instance.new("UICorner", TagBg).CornerRadius = UDim.new(0, 4)
+            local TagGrad = Instance.new("UIGradient", TagBg) TagGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255,200,0)), ColorSequenceKeypoint.new(1, Color3.fromRGB(200,140,0))})
+            local TagText = Instance.new("TextLabel", TagBg) TagText.Size, TagText.BackgroundTransparency, TagText.Text, TagText.TextColor3, TagText.Font, TagText.TextSize = UDim2.new(1,0,1,0), 1, "BEST VALUE", Color_BgDark, Enum.Font.GothamBold, 11
         end
-    end)
 
-    UI.CardTitle = Instance.new("TextLabel", UI.TopBar)
-    UI.CardTitle.Size = UDim2.new(0, 160, 0, 24)
-    UI.CardTitle.Position = UDim2.new(0, 45, 0, 10)
-    UI.CardTitle.BackgroundTransparency = 1
-    UI.CardTitle.Text = "LIFETIME VIP" 
-    UI.CardTitle.TextColor3 = Color3.fromRGB(255, 255, 255) 
-    UI.CardTitle.Font = Enum.Font.GothamBold
-    UI.CardTitle.TextSize = 21
-    UI.CardTitle.TextXAlignment = Enum.TextXAlignment.Left
+        local PremArrow = Instance.new("ImageLabel", TopBar)
+        PremArrow.Size, PremArrow.Position, PremArrow.BackgroundTransparency, PremArrow.Image, PremArrow.ImageColor3 = UDim2.new(0,20,0,20), UDim2.new(1,-30,0.5,-10), 1, "rbxassetid://6031091004", MainColor
 
-    local TitleGradient = Instance.new("UIGradient", UI.CardTitle)
-    TitleGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color_PrimaryGold),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(1, Color_PrimaryGold)
-    })
-    TitleGradient.Rotation = 45
-    
-    task.spawn(function()
-        local offset = -1
-        while true do
-            offset = offset + (task.wait() * 1.5)
-            if offset > 1 then offset = -1 end
-            TitleGradient.Offset = Vector2.new(offset, 0)
+        TopBar.MouseEnter:Connect(function() TweenService:Create(PremStroke, TweenInfo.new(0.3), {Transparency = 0, Thickness = isProMax and 2.5 or 2, Color = HoverColor}):Play() TweenService:Create(PremBox, TweenInfo.new(0.3), {BackgroundColor3 = Color_Hover}):Play() end)
+        TopBar.MouseLeave:Connect(function() TweenService:Create(PremStroke, TweenInfo.new(0.3), {Transparency = 0.2, Thickness = isProMax and 2 or 1.5, Color = MainColor}):Play() TweenService:Create(PremBox, TweenInfo.new(0.3), {BackgroundColor3 = Color_BgLighter}):Play() end)
+
+        local PremContent = Instance.new("Frame", PremBox)
+        PremContent.Size, PremContent.Position, PremContent.BackgroundTransparency, PremContent.Visible = UDim2.new(1,0,1,-85), UDim2.new(0,0,0,85), 1, false
+
+        local PremDivider = Instance.new("Frame", PremContent)
+        PremDivider.Size, PremDivider.Position, PremDivider.BackgroundColor3, PremDivider.BorderSizePixel, PremDivider.BackgroundTransparency = UDim2.new(1,-30,0,1), UDim2.new(0,15,0,0), MainColor, 0, 0.5
+
+        local PremList = Instance.new("UIListLayout", PremContent) PremList.Padding, PremList.SortOrder, PremList.HorizontalAlignment = UDim.new(0,4), Enum.SortOrder.LayoutOrder, Enum.HorizontalAlignment.Center
+        local PremPad = Instance.new("UIPadding", PremContent) PremPad.PaddingTop, PremPad.PaddingBottom = UDim.new(0,15), UDim.new(0,10)
+
+        local BenTitle = Instance.new("TextLabel", PremContent)
+        BenTitle.Size, BenTitle.BackgroundTransparency, BenTitle.Text, BenTitle.TextColor3, BenTitle.Font, BenTitle.TextSize, BenTitle.TextXAlignment = UDim2.new(1,-40,0,22), 1, "Benefits Includes:", MainColor, Enum.Font.GothamBold, 14, Enum.TextXAlignment.Left
+
+        for _, txt in ipairs(benefitsList) do
+            local ItemFrame = Instance.new("Frame", PremContent) ItemFrame.Size, ItemFrame.BackgroundTransparency = UDim2.new(1,-40,0,18), 1
+            local TickImage = Instance.new("ImageLabel", ItemFrame) TickImage.Size, TickImage.Position, TickImage.BackgroundTransparency, TickImage.Image, TickImage.ImageColor3 = UDim2.new(0,14,0,14), UDim2.new(0,0,0.5,-7), 1, "rbxassetid://103955809566890", Color3.fromRGB(255,255,255)
+            local bText = Instance.new("TextLabel", ItemFrame) bText.Size, bText.Position, bText.BackgroundTransparency, bText.Text, bText.TextColor3, bText.Font, bText.TextSize, bText.TextXAlignment = UDim2.new(1,-20,1,0), UDim2.new(0,20,0,0), 1, txt, Color3.fromRGB(230,230,230), Enum.Font.GothamMedium, 12, Enum.TextXAlignment.Left
         end
-    end)
 
-    UI.PermTag = Instance.new("Frame", UI.TopBar)
-    UI.PermTag.Size = UDim2.new(0, 110, 0, 18)
-    UI.PermTag.Position = UDim2.new(0, 15, 0, 38)
-    UI.PermTag.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-    Instance.new("UICorner", UI.PermTag).CornerRadius = UDim.new(0, 4)
+        local Spacer = Instance.new("Frame", PremContent) Spacer.Size, Spacer.BackgroundTransparency = UDim2.new(1,0,0,7), 1
+        local GetPremBtn = Instance.new("TextButton", PremContent) GetPremBtn.Size, GetPremBtn.BackgroundColor3, GetPremBtn.Text, GetPremBtn.TextColor3, GetPremBtn.Font, GetPremBtn.TextSize, GetPremBtn.ClipsDescendants = UDim2.new(1,-60,0,38), MainColor, "GET PREMIUM", Color_BgDark, Enum.Font.GothamBold, 14, true 
+        Instance.new("UICorner", GetPremBtn).CornerRadius = UDim.new(0, 6)
 
-    UI.PermText = Instance.new("TextLabel", UI.PermTag)
-    UI.PermText.Size = UDim2.new(1, 0, 1, 0)
-    UI.PermText.BackgroundTransparency = 1
-    UI.PermText.Text = "PERMANENT OFFER"
-    UI.PermText.TextColor3 = Color_PrimaryGold
-    UI.PermText.Font = Enum.Font.GothamBold
-    UI.PermText.TextSize = 10
+        if isActivePlan then Spacer.Visible = false GetPremBtn.Visible = false end
 
-    UI.Dollar = Instance.new("TextLabel", UI.TopBar)
-    UI.Dollar.Size = UDim2.new(0, 15, 0, 20)
-    UI.Dollar.Position = UDim2.new(0, 15, 0, 70)
-    UI.Dollar.BackgroundTransparency = 1
-    UI.Dollar.Text = "$"
-    UI.Dollar.TextColor3 = Color_PrimaryGold
-    UI.Dollar.Font = Enum.Font.GothamBold
-    UI.Dollar.TextSize = 22 
-    UI.Dollar.TextXAlignment = Enum.TextXAlignment.Left
-    UI.Dollar.TextYAlignment = Enum.TextYAlignment.Top
-
-    UI.PriceText = Instance.new("TextLabel", UI.TopBar)
-    UI.PriceText.Size = UDim2.new(0, 95, 0, 35)
-    UI.PriceText.Position = UDim2.new(0, 32, 0, 60)
-    UI.PriceText.BackgroundTransparency = 1
-    UI.PriceText.Text = "10.00"
-    UI.PriceText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    UI.PriceText.Font = Enum.Font.GothamBlack
-    UI.PriceText.TextSize = 42 
-    UI.PriceText.TextXAlignment = Enum.TextXAlignment.Left
-
-    UI.UnlimText = Instance.new("TextLabel", UI.TopBar)
-    UI.UnlimText.Size = UDim2.new(0, 70, 0, 20)
-    UI.UnlimText.Position = UDim2.new(0, 135, 0, 75)
-    UI.UnlimText.BackgroundTransparency = 1
-    UI.UnlimText.Text = "/Unlimited"
-    UI.UnlimText.TextColor3 = Color3.fromRGB(150, 150, 150)
-    UI.UnlimText.Font = Enum.Font.GothamMedium
-    UI.UnlimText.TextSize = 16 
-    UI.UnlimText.TextXAlignment = Enum.TextXAlignment.Left
-
-    UI.OfferTagContainer = Instance.new("Frame", UI.TopBar)
-    UI.OfferTagContainer.Size = UDim2.new(0, 48, 0, 48)
-    UI.OfferTagContainer.Position = UDim2.new(1, -95, 0, 28)
-    UI.OfferTagContainer.BackgroundColor3 = Color3.fromRGB(220, 45, 45)
-    Instance.new("UICorner", UI.OfferTagContainer).CornerRadius = UDim.new(1, 0) 
-
-    UI.OfferStroke = Instance.new("UIStroke", UI.OfferTagContainer)
-    UI.OfferStroke.Color = Color_BrightGold
-    UI.OfferStroke.Thickness = 1.5
-    
-    task.spawn(function()
-        while true do
-            TweenService:Create(UI.OfferTagContainer, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Size = UDim2.new(0, 52, 0, 52), Position = UDim2.new(1, -97, 0, 26)}):Play()
-            TweenService:Create(UI.OfferStroke, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 2.5}):Play()
-            task.wait(0.6)
-            TweenService:Create(UI.OfferTagContainer, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Size = UDim2.new(0, 48, 0, 48), Position = UDim2.new(1, -95, 0, 28)}):Play()
-            TweenService:Create(UI.OfferStroke, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 1.5}):Play()
-            task.wait(0.6)
+        local isPremOpen = false
+        local function updatePremSize()
+            if isPremOpen then PremContent.Visible = true TweenService:Create(PremBox, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = UDim2.new(1,0,0, 85 + PremList.AbsoluteContentSize.Y + 25)}):Play() TweenService:Create(PremArrow, TweenInfo.new(0.3), {Rotation = 180}):Play()
+            else local closeT = TweenService:Create(PremBox, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = UDim2.new(1,0,0,85)}) closeT:Play() TweenService:Create(PremArrow, TweenInfo.new(0.3), {Rotation = 0}):Play() closeT.Completed:Connect(function() if not isPremOpen then PremContent.Visible = false end end) end
         end
-    end)
 
-    UI.OfferSub = Instance.new("TextLabel", UI.OfferTagContainer)
-    UI.OfferSub.Size = UDim2.new(1, 0, 1, 0)
-    UI.OfferSub.BackgroundTransparency = 1
-    UI.OfferSub.Text = "-$2\nOFF"
-    UI.OfferSub.TextColor3 = Color_BrightGold
-    UI.OfferSub.Font = Enum.Font.GothamBold
-    UI.OfferSub.TextSize = 14
+        TopBar.MouseButton1Click:Connect(function() isPremOpen = not isPremOpen updatePremSize() end)
+        PremList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() if isPremOpen then PremBox.Size = UDim2.new(1,0,0, 85 + PremList.AbsoluteContentSize.Y + 25) end end)
+        GetPremBtn.MouseButton1Click:Connect(function() if isActivePlan then return end local discordLink = "https://discord.gg/your_discord_invite" if setclipboard then setclipboard(discordLink) elseif toclipboard then toclipboard(discordLink) end local oldText = GetPremBtn.Text GetPremBtn.Text = "LINK COPIED!" task.wait(2) if not isActivePlan then GetPremBtn.Text = oldText end end)
 
-    UI.PremArrow = Instance.new("ImageLabel", UI.TopBar)
-    UI.PremArrow.Size = UDim2.new(0, 24, 0, 24)
-    UI.PremArrow.Position = UDim2.new(1, -35, 0.5, -12)
-    UI.PremArrow.BackgroundTransparency = 1
-    UI.PremArrow.Image = "rbxassetid://6031091004"
-    UI.PremArrow.ImageColor3 = Color_PrimaryGold
-
-    UI.TopBar.MouseEnter:Connect(function()
-        TweenService:Create(UI.PremStroke, TweenInfo.new(0.3), {Transparency = 0, Thickness = 2, Color = Color_BrightGold}):Play()
-        TweenService:Create(UI.PremBox, TweenInfo.new(0.3), {BackgroundColor3 = Color_Hover}):Play()
-    end)
-    UI.TopBar.MouseLeave:Connect(function()
-        TweenService:Create(UI.PremStroke, TweenInfo.new(0.3), {Transparency = 0.2, Thickness = 1.5, Color = Color_PrimaryGold}):Play()
-        TweenService:Create(UI.PremBox, TweenInfo.new(0.3), {BackgroundColor3 = Color_BgLighter}):Play()
-    end)
-
-    UI.PremContent = Instance.new("Frame", UI.PremBox)
-    UI.PremContent.Size = UDim2.new(1, 0, 1, -110)
-    UI.PremContent.Position = UDim2.new(0, 0, 0, 110)
-    UI.PremContent.BackgroundTransparency = 1
-    UI.PremContent.Visible = false
-
-    UI.PremDivider = Instance.new("Frame", UI.PremContent)
-    UI.PremDivider.Size = UDim2.new(1, -30, 0, 1)
-    UI.PremDivider.Position = UDim2.new(0, 15, 0, 0)
-    UI.PremDivider.BackgroundColor3 = Color_PrimaryGold
-    UI.PremDivider.BorderSizePixel = 0
-    UI.PremDivider.BackgroundTransparency = 0.5
-
-    UI.PremList = Instance.new("UIListLayout", UI.PremContent)
-    UI.PremList.Padding = UDim.new(0, 4) 
-    UI.PremList.SortOrder = Enum.SortOrder.LayoutOrder
-    UI.PremList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-    UI.PremPad = Instance.new("UIPadding", UI.PremContent)
-    UI.PremPad.PaddingTop = UDim.new(0, 15)
-    UI.PremPad.PaddingBottom = UDim.new(0, 10) 
-
-    UI.BenTitle = Instance.new("TextLabel", UI.PremContent)
-    UI.BenTitle.Size = UDim2.new(1, -40, 0, 22)
-    UI.BenTitle.BackgroundTransparency = 1
-    UI.BenTitle.Text = "VIP Benefits Includes:"
-    UI.BenTitle.TextColor3 = Color_PrimaryGold
-    UI.BenTitle.Font = Enum.Font.GothamBold
-    UI.BenTitle.TextSize = 15
-    UI.BenTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    local benefitsList = {
-        "ALL VIP FEATURES UNLOCKED",
-        "MAXIMUM SAFE MODE PROTECTION",
-        "HIGH PRIORITY 24/7 SUPPORT",
-        "NO ADS / NO KEY SYSTEM",
-        "EXCLUSIVE DISCORD ROLE"
-    }
-
-    for _, txt in ipairs(benefitsList) do
-        local ItemFrame = Instance.new("Frame", UI.PremContent)
-        ItemFrame.Size = UDim2.new(1, -40, 0, 18)
-        ItemFrame.BackgroundTransparency = 1
-
-        local TickImage = Instance.new("ImageLabel", ItemFrame)
-        TickImage.Size = UDim2.new(0, 14, 0, 14) 
-        TickImage.Position = UDim2.new(0, 0, 0.5, -7)
-        TickImage.BackgroundTransparency = 1
-        TickImage.Image = "rbxassetid://103955809566890"
-
-        local bText = Instance.new("TextLabel", ItemFrame)
-        bText.Size = UDim2.new(1, -15, 1, 0)
-        bText.Position = UDim2.new(0, 18, 0, 0)
-        bText.BackgroundTransparency = 1
-        bText.Text = txt
-        bText.TextColor3 = Color3.fromRGB(230, 230, 230)
-        bText.Font = Enum.Font.GothamMedium
-        bText.TextSize = 13 
-        bText.TextXAlignment = Enum.TextXAlignment.Left
+        return PremBox
     end
 
-    UI.Spacer = Instance.new("Frame", UI.PremContent)
-    UI.Spacer.Size = UDim2.new(1, 0, 0, 7) 
-    UI.Spacer.BackgroundTransparency = 1
+    local ProCard = createPremiumCard("PRO", "5.00", false, {"ALL VIP FEATURES UNLOCKED", "NO ADS / NO KEY SYSTEM", "HIGH PRIORITY SUPPORT", "30 DAYS VALIDITY"}, 1)
+    local ProMaxCard = createPremiumCard("PRO MAX", "12.00", true, {"EVERYTHING IN PRO VERSION", "UNLIMITED AI ASSISTANCE QUOTA", "1x FREE HWID RESET TOKEN", "EARLY ACCESS TO NEW FEATURES", "3 MONTHS VALIDITY (90 DAYS)"}, 2)
 
-    UI.GetPremBtn = Instance.new("TextButton", UI.PremContent)
-    UI.GetPremBtn.Size = UDim2.new(1, -60, 0, 38)
-    UI.GetPremBtn.BackgroundColor3 = Color_PrimaryGold
-    UI.GetPremBtn.Text = "GET PREMIUM"
-    UI.GetPremBtn.TextColor3 = Color_BgDark
-    UI.GetPremBtn.Font = Enum.Font.GothamBold
-    UI.GetPremBtn.TextSize = 14
-    UI.GetPremBtn.ClipsDescendants = true 
-    Instance.new("UICorner", UI.GetPremBtn).CornerRadius = UDim.new(0, 6) 
-
-    local BtnStroke = Instance.new("UIStroke", UI.GetPremBtn)
-    BtnStroke.Color = Color_BrightGold
-    BtnStroke.Thickness = 1.5
-    BtnStroke.Transparency = 0.5
-
-    local Glare = Instance.new("Frame", UI.GetPremBtn)
-    Glare.Size = UDim2.new(0.5, 0, 1, 0)
-    Glare.Position = UDim2.new(-0.6, 0, 0, 0)
-    Glare.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Glare.BorderSizePixel = 0
-    
-    local GlareGrad = Instance.new("UIGradient", Glare)
-    GlareGrad.Rotation = 45
-    GlareGrad.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1),
-        NumberSequenceKeypoint.new(0.5, 0.3), 
-        NumberSequenceKeypoint.new(1, 1)
-    })
-
-    task.spawn(function()
-        while true do
-            TweenService:Create(Glare, TweenInfo.new(0.7, Enum.EasingStyle.Linear), {Position = UDim2.new(1.2, 0, 0, 0)}):Play()
-            task.wait(0.7)
-            Glare.Position = UDim2.new(-0.6, 0, 0, 0)
-            task.wait(2.5) 
-        end
-    end)
-    
-    UI.GetPremBtn.MouseEnter:Connect(function()
-        TweenService:Create(UI.GetPremBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color_BrightGold}):Play()
-        TweenService:Create(BtnStroke, TweenInfo.new(0.2), {Transparency = 0, Thickness = 2}):Play()
-    end)
-    UI.GetPremBtn.MouseLeave:Connect(function()
-        TweenService:Create(UI.GetPremBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color_PrimaryGold}):Play()
-        TweenService:Create(BtnStroke, TweenInfo.new(0.2), {Transparency = 0.5, Thickness = 1.5}):Play()
-    end)
-    
-    UI.GetPremBtn.MouseButton1Click:Connect(function()
-        local discordLink = "https://discord.gg/your_discord_invite"
-        if setclipboard then
-            setclipboard(discordLink)
-        elseif toclipboard then
-            toclipboard(discordLink)
-        end
-        UI.GetPremBtn.Text = "LINK COPIED!"
-        task.wait(2)
-        UI.GetPremBtn.Text = "GET PREMIUM"
-    end)
-
-    local isPremOpen = false
-    local function updatePremSize()
-        if isPremOpen then
-            UI.PremContent.Visible = true
-            local targetHeight = 110 + UI.PremList.AbsoluteContentSize.Y + 25 
-            TweenService:Create(UI.PremBox, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = UDim2.new(1, 6, 0, targetHeight)}):Play()
-            TweenService:Create(UI.PremArrow, TweenInfo.new(0.3), {Rotation = 180}):Play()
-        else
-            local closeT = TweenService:Create(UI.PremBox, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = UDim2.new(1, 6, 0, 110)})
-            closeT:Play()
-            TweenService:Create(UI.PremArrow, TweenInfo.new(0.3), {Rotation = 0}):Play()
-            closeT.Completed:Connect(function() if not isPremOpen then UI.PremContent.Visible = false end end)
-        end
-    end
-
-    UI.TopBar.MouseButton1Click:Connect(function() 
-        isPremOpen = not isPremOpen 
-        updatePremSize() 
-    end)
-
-    UI.PremList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() 
-        if isPremOpen then 
-            UI.PremBox.Size = UDim2.new(1, 6, 0, 110 + UI.PremList.AbsoluteContentSize.Y + 25) 
-        end 
-    end)
+    if CurrentPlan == "PRO MAX" then ProCard.Visible = false end
 end
 
 -- 🔍 [SEARCH ENGINE] 
