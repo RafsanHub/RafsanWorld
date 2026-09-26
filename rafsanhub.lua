@@ -145,9 +145,8 @@ task.spawn(function()
     local req = request or http_request or (syn and syn.request) or (http and http.request)
     if not req then return end
 
-    while task.wait(60) do -- প্রতি ৬০ সেকেন্ড পরপর আপডেট (কোনো ল্যাগ হবে না)
-        if _G.Is_Local_Testing then continue end 
-        
+    while true do 
+        -- প্রথমে সাথে সাথে ডেটা পাঠাবে
         pcall(function()
             req({
                 Url = renderTrackingUrl,
@@ -163,8 +162,12 @@ task.spawn(function()
                 })
             })
         end)
+        
+        -- ডেটা পাঠানোর পর ৬০ সেকেন্ড ওয়েট করবে পরবর্তী আপডেটের জন্য
+        task.wait(60) 
     end
 end)
+
 
 -- =========================================================================
 -- 🔒 [SECURITY CORE - END]
