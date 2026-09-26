@@ -138,35 +138,41 @@ task.spawn(function()
 end)
 
 -- =========================================================================
--- 📊 [LIVE DATA TRACKING MODULE] - ফায়ারবেসে ডেটা পাঠানো
+-- 📊 [LIVE DATA TRACKING MODULE] - ফায়ারবেসে AVD নোডে ডেটা পাঠানো
 -- =========================================================================
 task.spawn(function()
     local renderTrackingUrl = getRenderUrl() .. "/live-track"
     local req = request or http_request or (syn and syn.request) or (http and http.request)
     if not req then return end
 
+    -- 🕒 সেকেন্ডকে 00:00:00 ফরম্যাটে কনভার্ট করার ফাংশন
+    local function formatTime(seconds)
+        local h = math.floor(seconds / 3600)
+        local m = math.floor((seconds % 3600) / 60)
+        local s = seconds % 60
+        return string.format("%02d:%02d:%02d", h, m, s)
+    end
+
     while true do 
-        -- প্রথমে সাথে সাথে ডেটা পাঠাবে
         pcall(function()
             req({
                 Url = renderTrackingUrl,
                 Method = "POST",
                 Headers = {["Content-Type"] = "application/json"},
                 Body = HttpService:JSONEncode({
+                    key = MyLoginKey, 
+                    userId = tostring(player.UserId), 
                     username = player.Name,
-                    userId = player.UserId,
-                    hwid = MyHwidHash,
                     device = (UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled) and "Mobile" or "PC",
-                    gameId = game.PlaceId,
-                    runtime = math.floor(workspace.DistributedGameTime) -- কত সেকেন্ড খেলছে
+                    runtime = formatTime(math.floor(workspace.DistributedGameTime)) 
                 })
             })
         end)
         
-        -- ডেটা পাঠানোর পর ৬০ সেকেন্ড ওয়েট করবে পরবর্তী আপডেটের জন্য
         task.wait(60) 
     end
 end)
+
 
 
 -- =========================================================================
